@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { Plus, BookOpen, Video, Users, Edit, Trash, CheckCircle, XCircle, Clock, ShieldOff, RotateCcw, Search, Calendar, Save } from 'lucide-react';
 import { Lesson, User, UserStatus, ScheduledClass } from '../types';
 import { db } from '../services/firebase';
-import { doc, deleteDoc, updateDoc, collection, onSnapshot, query, setDoc } from 'firebase/firestore';
+import { doc, deleteDoc, updateDoc, collection, onSnapshot, query, setDoc, serverTimestamp } from 'firebase/firestore';
 
 interface AdminDashboardProps {
   lessons: Lesson[];
@@ -35,17 +35,12 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
   // Fetch ALL users real-time
   useEffect(() => {
-    // Removed orderBy("joinedAt", "desc") to prevent "Missing Index" error
-    // We will sort client-side instead
     const q = query(collection(db, "users"));
     
     const unsubscribe = onSnapshot(q, (snapshot) => {
         const users: User[] = [];
         snapshot.forEach((doc) => {
             const data = doc.data();
-            // Don't show admins in the list if you prefer
-            // if (data.role === 'admin') return; 
-
             users.push({
                 id: doc.id,
                 name: data.name || 'Unknown',
@@ -54,12 +49,11 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 status: data.status || 'pending',
                 avatar: data.avatar || '',
                 completedLessonIds: data.completedLessonIds || [],
-                joinedAt: data.joinedAt // might be null/timestamp
+                joinedAt: data.joinedAt 
             } as User);
         });
 
         // Client-side Sort: Newest first
-        // Handle Timestamp objects or Dates or nulls
         users.sort((a, b) => {
             const timeA = a.joinedAt?.seconds ? a.joinedAt.seconds : 0;
             const timeB = b.joinedAt?.seconds ? b.joinedAt.seconds : 0;
@@ -139,6 +133,20 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const handleDeleteClass = async (id: string) => {
       if (window.confirm("Cancel this class?")) {
           await deleteDoc(doc(db, "classes", id));
+      }
+  };
+
+  const handleGoLive = async () => {
+      // Mark room as active before navigating
+      try {
+          await setDoc(doc(db, "rooms", "main-class"), { 
+              active: true, 
+              startedAt: serverTimestamp() 
+          }, { merge: true });
+          onStartLiveClass();
+      } catch (e) {
+          console.error("Error starting class:", e);
+          onStartLiveClass(); // Navigate anyway
       }
   };
 
@@ -247,7 +255,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                  <div className="absolute top-0 right-0 w-24 h-24 bg-yellow-500/5 rounded-full blur-2xl -mr-6 -mt-6"></div>
             </div>
 
-            <div className="bg-slate-900 p-6 rounded-2xl border border-slate-800 cursor-pointer hover:border-red-500/50 transition-all group relative overflow-hidden" onClick={onStartLiveClass}>
+            <div className="bg-slate-900 p-6 rounded-2xl border border-slate-800 cursor-pointer hover:border-red-500/50 transition-all group relative overflow-hidden" onClick={handleGoLive}>
                 <div className="flex items-center justify-between mb-4 relative z-10">
                     <div className="p-3 bg-red-500/10 rounded-xl text-red-400 group-hover:bg-red-500 group-hover:text-white transition-colors"><Video size={24} /></div>
                     <span className="text-slate-500 text-xs font-bold uppercase group-hover:text-white/70">Instant Live</span>
@@ -258,6 +266,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
             </div>
         </div>
 
+        {/* Existing Tab Content Logic... */}
         {activeTab === 'content' && (
             <>
                 <div className="flex justify-between items-center mb-6">
@@ -339,6 +348,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
             </>
         )}
 
+        {/* ... Users Tab (Same as before) ... */}
         {activeTab === 'users' && (
             <>
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
@@ -469,15 +479,11 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                             ))}
                         </tbody>
                     </table>
-                    {filteredUsers.length === 0 && (
-                        <div className="p-10 text-center text-slate-500">
-                            No users found matching your filter.
-                        </div>
-                    )}
                 </div>
             </>
         )}
         
+        {/* ... Schedule Tab (Same as before) ... */}
         {activeTab === 'schedule' && (
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 {/* Schedule Form */}

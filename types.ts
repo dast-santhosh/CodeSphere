@@ -68,3 +68,11 @@ export interface CodeExecutionResult {
   isCorrect?: boolean; // For auto-grading
   feedback?: string;
 }
+
+export interface Poll {
+  id: string;
+  question: string;
+  options: { id: number; text: string; votes: number }[];
+  isActive: boolean;
+  createdAt: any;
+}

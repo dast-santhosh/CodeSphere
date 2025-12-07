@@ -1,7 +1,9 @@
 
-import React from 'react';
-import { PlayCircle, Clock, Award, Star, BookOpen, Code, CheckCircle2, Calendar, Video } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { PlayCircle, Clock, Award, Star, BookOpen, Code, CheckCircle2, Calendar, Video, Radio } from 'lucide-react';
 import { Lesson, ScheduledClass } from '../types';
+import { db } from '../services/firebase';
+import { doc, onSnapshot } from 'firebase/firestore';
 
 interface DashboardProps {
   lessons: Lesson[];
@@ -11,11 +13,26 @@ interface DashboardProps {
 }
 
 const Dashboard: React.FC<DashboardProps> = ({ lessons, scheduledClasses = [], onStartLesson, completedLessonIds = [] }) => {
+  const [isLive, setIsLive] = useState(false);
+  const [liveRoomId, setLiveRoomId] = useState('main-class');
+
   const completedCount = completedLessonIds.length;
   
   // Calculate a streak based on date (mock logic for now as we don't store completion dates)
   const streak = completedCount > 0 ? '1 Day' : '0 Days'; 
   const hoursSpent = Math.round(completedCount * 1.5); // Estimate 1.5h per lesson
+
+  // Listen for Live Room Status
+  useEffect(() => {
+    const unsub = onSnapshot(doc(db, "rooms", "main-class"), (doc) => {
+        if (doc.exists() && doc.data().active) {
+            setIsLive(true);
+        } else {
+            setIsLive(false);
+        }
+    });
+    return () => unsub();
+  }, []);
 
   return (
     <div className="h-full overflow-y-auto bg-slate-950">
@@ -30,6 +47,51 @@ const Dashboard: React.FC<DashboardProps> = ({ lessons, scheduledClasses = [], o
                 <span className="text-xs font-bold tracking-widest text-slate-300 uppercase">Learn. Code. Create. Together.</span>
             </div>
         </header>
+
+        {/* LIVE NOW BANNER */}
+        {isLive && (
+            <div className="mb-10 bg-gradient-to-r from-red-600 to-red-800 rounded-2xl p-1 shadow-2xl shadow-red-500/20 animate-pulse-slow">
+                <div className="bg-slate-900 rounded-xl p-6 flex flex-col md:flex-row items-center justify-between relative overflow-hidden">
+                     {/* Animated Background */}
+                    <div className="absolute top-0 right-0 w-64 h-64 bg-red-500/10 rounded-full blur-3xl -mr-16 -mt-16"></div>
+                    
+                    <div className="flex items-center z-10 mb-4 md:mb-0">
+                        <div className="mr-6 relative">
+                            <span className="absolute top-0 right-0 flex h-3 w-3">
+                              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                              <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
+                            </span>
+                            <div className="w-16 h-16 bg-red-500/20 rounded-full flex items-center justify-center text-red-500 border border-red-500/30">
+                                <Radio size={32} />
+                            </div>
+                        </div>
+                        <div>
+                            <h2 className="text-xl font-bold text-white mb-1">Live Class in Session!</h2>
+                            <p className="text-slate-400 text-sm">The instructor is currently streaming. Join now to participate.</p>
+                        </div>
+                    </div>
+
+                    <button 
+                        onClick={() => {
+                            // Find the 'Start Live Class' handler passed via props or context in a real app
+                            // For now, we assume the parent checks this view state change via a different method
+                            // In App.tsx, we need to pass a handler or expose a global context
+                            // Since we can't easily change App.tsx from here without prop drilling, 
+                            // we will use a custom event or let the user click the sidebar.
+                            // However, let's try to find the "Live Class" sidebar button programmatically or just rely on user navigation.
+                            // BETTER: We can't easily switch view from here without a prop. 
+                            // Assuming the user will click sidebar, but let's make this button work by triggering a click on the sidebar 'Live Class'
+                            const sidebarLiveBtn = document.querySelector('button[title="Live Class"]') as HTMLButtonElement;
+                            if (sidebarLiveBtn) sidebarLiveBtn.click();
+                        }}
+                        className="relative z-10 bg-red-600 hover:bg-red-700 text-white px-8 py-3 rounded-xl font-bold transition-all shadow-lg flex items-center"
+                    >
+                        <Video size={20} className="mr-2" />
+                        JOIN CLASS
+                    </button>
+                </div>
+            </div>
+        )}
 
         {/* Stats Grid */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
@@ -92,9 +154,6 @@ const Dashboard: React.FC<DashboardProps> = ({ lessons, scheduledClasses = [], o
                                     </div>
                                 </div>
                             </div>
-                            <button className="bg-slate-800 hover:bg-primary-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors">
-                                Join
-                            </button>
                         </div>
                     ))}
                 </div>
