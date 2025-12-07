@@ -10,11 +10,11 @@ import AdminDashboard from './components/AdminDashboard';
 import LessonEditor from './components/LessonEditor';
 import UserProfile from './components/UserProfile';
 import WaitingRoom from './components/WaitingRoom';
-import { Lesson, User, UserStatus } from './types';
+import { Lesson, User, UserStatus, ScheduledClass } from './types';
 import { INITIAL_CURRICULUM, APP_LOGO } from './constants';
 import { auth, db } from './services/firebase';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
-import { collection, onSnapshot, doc, getDoc, writeBatch, updateDoc, arrayUnion, setDoc } from 'firebase/firestore';
+import { collection, onSnapshot, doc, getDoc, writeBatch, updateDoc, arrayUnion, setDoc, query, orderBy, where } from 'firebase/firestore';
 
 type View = 'dashboard' | 'learn' | 'live' | 'sandbox' | 'profile' | 'admin-dashboard' | 'lesson-editor';
 
@@ -25,6 +25,7 @@ const App: React.FC = () => {
 
   // App Data State
   const [lessons, setLessons] = useState<Lesson[]>([]);
+  const [scheduledClasses, setScheduledClasses] = useState<ScheduledClass[]>([]);
   const [dbError, setDbError] = useState<string | null>(null);
   
   // Navigation State
@@ -87,24 +88,19 @@ const App: React.FC = () => {
     };
   }, []);
 
-  // 2. Fetch Lessons
+  // 2. Fetch Lessons & Classes
   useEffect(() => {
-    // SECURITY: Do not attempt to fetch lessons if user is not logged in.
-    // This prevents "Missing or insufficient permissions" errors on app load.
     if (!user) return;
 
-    const unsubscribe = onSnapshot(collection(db, "lessons"), (snapshot) => {
+    // Fetch Lessons
+    const unsubscribeLessons = onSnapshot(collection(db, "lessons"), (snapshot) => {
         const fetchedLessons: Lesson[] = [];
         snapshot.forEach((doc) => {
             fetchedLessons.push(doc.data() as Lesson);
         });
-        
-        // Sort logic (by ID)
         fetchedLessons.sort((a, b) => a.id.localeCompare(b.id));
-
         setLessons(fetchedLessons);
         
-        // Auto-Seed if empty and connected AND User is Admin
         if (fetchedLessons.length === 0 && !dbError && user.role === 'admin') {
             seedDatabase();
         }
@@ -115,10 +111,40 @@ const App: React.FC = () => {
         }
     });
 
-    return () => unsubscribe();
+    // Fetch Scheduled Classes
+    // We get all classes and filter/sort client side to avoid index issues
+    const qClasses = query(collection(db, "classes"));
+    const unsubscribeClasses = onSnapshot(qClasses, (snapshot) => {
+         const classes: ScheduledClass[] = [];
+         const now = new Date();
+         now.setHours(now.getHours() - 2); // Show classes from 2 hours ago onwards (in case they are live)
+
+         snapshot.forEach((doc) => {
+             const data = doc.data() as ScheduledClass;
+             // Simple client-side filter
+             if (new Date(data.date) > now) {
+                classes.push(data);
+             }
+         });
+         
+         // Sort client-side
+         classes.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+         
+         setScheduledClasses(classes);
+    }, (error) => {
+        console.error("Classes fetch error:", error);
+    });
+
+    return () => {
+        unsubscribeLessons();
+        unsubscribeClasses();
+    };
   }, [user?.id, user?.role, dbError]);
 
   const seedDatabase = async () => {
+    // Only allow Admins to seed to prevent write errors
+    if (user?.role !== 'admin') return;
+
     try {
         const batch = writeBatch(db);
         INITIAL_CURRICULUM.forEach(lesson => {
@@ -198,10 +224,9 @@ const App: React.FC = () => {
     }
 
     if (!user) {
-        return <Login onLogin={() => {}} />; // Login component handles auth internally and triggers the auth listener
+        return <Login onLogin={() => {}} />; 
     }
 
-    // CHECK USER STATUS: If pending and not admin, show Waiting Room
     if (user.status === 'pending' && user.role !== 'admin') {
         return <WaitingRoom user={user} onLogout={handleLogout} />;
     }
@@ -260,11 +285,11 @@ const App: React.FC = () => {
               />
               <SidebarItem 
                 icon={<GraduationCap size={20} />} 
-                label="Curriculum" 
+                label="Modules" 
                 active={currentView === 'learn'} 
                 onClick={() => {
                    if (lessons.length > 0) {
-                       setActiveLesson(lessons[0]); // Default to first lesson if just clicking tab
+                       setActiveLesson(lessons[0]); 
                        setCurrentView('learn');
                    }
                 }} 
@@ -284,7 +309,7 @@ const App: React.FC = () => {
               
               {user.role === 'admin' && (
                 <div className="pt-4 mt-4 border-t border-slate-800">
-                    <div className="px-4 text-xs font-bold text-slate-500 uppercase mb-2 hidden lg:block">Instructor</div>
+                    <div className="px-4 text-xs font-bold text-slate-500 uppercase mb-2 hidden lg:block">Admin Controls</div>
                     <SidebarItem 
                         icon={<Shield size={20} />} 
                         label="Admin Panel" 
@@ -326,6 +351,7 @@ const App: React.FC = () => {
           {currentView === 'dashboard' && (
             <Dashboard 
                 lessons={lessons} 
+                scheduledClasses={scheduledClasses}
                 onStartLesson={handleLessonStart} 
                 completedLessonIds={user.completedLessonIds}
             />
@@ -342,7 +368,7 @@ const App: React.FC = () => {
           {currentView === 'learn' && !activeLesson && (
              <div className="h-full flex flex-col items-center justify-center text-slate-500">
                  <GraduationCap size={48} className="mb-4 opacity-50" />
-                 <p>Select a lesson from the Dashboard to start learning.</p>
+                 <p>Select a module from the Dashboard to start learning.</p>
                  <button onClick={() => setCurrentView('dashboard')} className="mt-4 text-primary-400 hover:underline">Go to Dashboard</button>
              </div>
           )}
@@ -368,6 +394,7 @@ const App: React.FC = () => {
           {currentView === 'admin-dashboard' && user.role === 'admin' && (
             <AdminDashboard 
                 lessons={lessons}
+                scheduledClasses={scheduledClasses}
                 onCreateLesson={() => {
                     setEditingLesson(null);
                     setCurrentView('lesson-editor');
@@ -377,7 +404,7 @@ const App: React.FC = () => {
                     setCurrentView('lesson-editor');
                 }}
                 onDeleteLesson={(id) => {
-                    // Handled inside AdminDashboard, but we pass handler just in case we need app-level logic
+                    // Handled inside AdminDashboard
                 }}
                 onStartLiveClass={() => setCurrentView('live')}
             />
@@ -391,7 +418,7 @@ const App: React.FC = () => {
               />
           )}
 
-           {/* Permission Guard for Admin Routes */}
+           {/* Permission Guard */}
            {(currentView === 'admin-dashboard' || currentView === 'lesson-editor') && user.role !== 'admin' && (
                <div className="h-full flex items-center justify-center">
                    <div className="text-center">

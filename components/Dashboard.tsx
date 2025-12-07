@@ -1,15 +1,16 @@
 
 import React from 'react';
-import { PlayCircle, Clock, Award, Star, BookOpen, Code, CheckCircle2 } from 'lucide-react';
-import { Lesson } from '../types';
+import { PlayCircle, Clock, Award, Star, BookOpen, Code, CheckCircle2, Calendar, Video } from 'lucide-react';
+import { Lesson, ScheduledClass } from '../types';
 
 interface DashboardProps {
   lessons: Lesson[];
+  scheduledClasses?: ScheduledClass[];
   onStartLesson: (lesson: Lesson) => void;
   completedLessonIds?: string[];
 }
 
-const Dashboard: React.FC<DashboardProps> = ({ lessons, onStartLesson, completedLessonIds = [] }) => {
+const Dashboard: React.FC<DashboardProps> = ({ lessons, scheduledClasses = [], onStartLesson, completedLessonIds = [] }) => {
   const completedCount = completedLessonIds.length;
   
   // Calculate a streak based on date (mock logic for now as we don't store completion dates)
@@ -38,7 +39,7 @@ const Dashboard: React.FC<DashboardProps> = ({ lessons, onStartLesson, completed
                     <BookOpen size={24} />
                 </div>
                 <div>
-                    <p className="text-slate-400 text-sm font-medium">Lessons Completed</p>
+                    <p className="text-slate-400 text-sm font-medium">Modules Completed</p>
                     <p className="text-2xl font-bold text-white">{completedCount}/{lessons.length}</p>
                 </div>
             </div>
@@ -65,6 +66,40 @@ const Dashboard: React.FC<DashboardProps> = ({ lessons, onStartLesson, completed
                 </div>
             </div>
         </div>
+        
+        {/* Scheduled Classes */}
+        {scheduledClasses.length > 0 && (
+            <div className="mb-10">
+                <h2 className="text-xl font-bold text-white mb-4 flex items-center">
+                    <Video className="text-red-500 mr-2" size={20} />
+                    Upcoming Live Classes
+                </h2>
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                    {scheduledClasses.map(cls => (
+                        <div key={cls.id} className="bg-slate-900 border border-slate-800 p-5 rounded-2xl flex items-center justify-between hover:border-primary-500/30 transition-colors">
+                            <div className="flex items-center">
+                                <div className="p-3 bg-slate-800 rounded-xl mr-4 text-center min-w-[60px]">
+                                    <div className="text-xs text-red-400 font-bold uppercase">{new Date(cls.date).toLocaleString('default', { month: 'short' })}</div>
+                                    <div className="text-xl font-bold text-white">{new Date(cls.date).getDate()}</div>
+                                </div>
+                                <div>
+                                    <h3 className="font-bold text-white">{cls.title}</h3>
+                                    <div className="flex items-center text-xs text-slate-400 mt-1">
+                                        <Clock size={12} className="mr-1" />
+                                        {new Date(cls.date).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                                        <span className="mx-2">•</span>
+                                        <span>{cls.instructorName}</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <button className="bg-slate-800 hover:bg-primary-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors">
+                                Join
+                            </button>
+                        </div>
+                    ))}
+                </div>
+            </div>
+        )}
 
         <h2 className="text-xl font-bold text-white mb-6 flex items-center">
             <Star className="text-yellow-500 mr-2" size={20} fill="currentColor" />
@@ -119,7 +154,7 @@ const Dashboard: React.FC<DashboardProps> = ({ lessons, onStartLesson, completed
                                 ? 'bg-slate-800 text-slate-300 hover:bg-slate-700' 
                                 : 'bg-slate-800 hover:bg-primary-600 text-white'}`}
                     >
-                        {isCompleted ? 'Review Lesson' : 'Start Lesson'}
+                        {isCompleted ? 'Review Module' : 'Start Module'}
                     </button>
                 </div>
             );

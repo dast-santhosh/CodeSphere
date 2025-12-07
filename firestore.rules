@@ -18,17 +18,21 @@ service cloud.firestore {
 
     // --- USERS COLLECTION ---
     match /users/{userId} {
-      // Users can read and write their own profile (for signup & progress updates)
-      // Admins can read and write any profile (for approval/rejection)
-      allow read, write: if isSignedIn() && (request.auth.uid == userId || isAdmin());
+      // Users can read/write their own profile
+      // Admins can read/write ANY profile (essential for approval dashboard)
+      allow read: if isSignedIn(); // Allow read for all signed in users so directory works
+      allow write: if isSignedIn() && (request.auth.uid == userId || isAdmin());
     }
 
     // --- LESSONS COLLECTION ---
     match /lessons/{lessonId} {
-      // Any signed-in user (student or admin) can read lessons
       allow read: if isSignedIn();
-      
-      // Only admins can create, update, or delete lessons
+      allow write: if isAdmin();
+    }
+
+    // --- CLASSES COLLECTION (Live Schedule) ---
+    match /classes/{classId} {
+      allow read: if isSignedIn();
       allow write: if isAdmin();
     }
   }

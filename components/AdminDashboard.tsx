@@ -1,12 +1,13 @@
 
 import React, { useState, useEffect } from 'react';
-import { Plus, BookOpen, Video, Users, Edit, Trash, CheckCircle, XCircle, Clock, ShieldOff, RotateCcw, Search, MoreVertical } from 'lucide-react';
-import { Lesson, User, UserStatus } from '../types';
+import { Plus, BookOpen, Video, Users, Edit, Trash, CheckCircle, XCircle, Clock, ShieldOff, RotateCcw, Search, Calendar, Save } from 'lucide-react';
+import { Lesson, User, UserStatus, ScheduledClass } from '../types';
 import { db } from '../services/firebase';
-import { doc, deleteDoc, updateDoc, collection, onSnapshot, orderBy, query } from 'firebase/firestore';
+import { doc, deleteDoc, updateDoc, collection, onSnapshot, query, setDoc } from 'firebase/firestore';
 
 interface AdminDashboardProps {
   lessons: Lesson[];
+  scheduledClasses?: ScheduledClass[];
   onCreateLesson: () => void;
   onEditLesson: (lesson: Lesson) => void;
   onDeleteLesson: (id: string) => void;
@@ -15,26 +16,35 @@ interface AdminDashboardProps {
 
 const AdminDashboard: React.FC<AdminDashboardProps> = ({ 
   lessons, 
+  scheduledClasses = [],
   onCreateLesson, 
   onEditLesson, 
   onDeleteLesson,
   onStartLiveClass
 }) => {
   const [allUsers, setAllUsers] = useState<User[]>([]);
-  const [activeTab, setActiveTab] = useState<'content' | 'users'>('content');
+  const [activeTab, setActiveTab] = useState<'content' | 'users' | 'schedule'>('content');
   const [userFilter, setUserFilter] = useState<'all' | 'active' | 'pending' | 'rejected'>('all');
   const [searchQuery, setSearchQuery] = useState('');
+  
+  // Class Scheduling State
+  const [newClassDate, setNewClassDate] = useState('');
+  const [newClassTime, setNewClassTime] = useState('');
+  const [newClassTitle, setNewClassTitle] = useState('');
+  const [isScheduling, setIsScheduling] = useState(false);
 
   // Fetch ALL users real-time
   useEffect(() => {
-    // Order by joinedAt desc to see newest users first
-    const q = query(collection(db, "users"), orderBy("joinedAt", "desc"));
+    // Removed orderBy("joinedAt", "desc") to prevent "Missing Index" error
+    // We will sort client-side instead
+    const q = query(collection(db, "users"));
+    
     const unsubscribe = onSnapshot(q, (snapshot) => {
         const users: User[] = [];
         snapshot.forEach((doc) => {
             const data = doc.data();
-            // Skip showing the admin themselves in the list to prevent accidents
-            if (data.role === 'admin') return;
+            // Don't show admins in the list if you prefer
+            // if (data.role === 'admin') return; 
 
             users.push({
                 id: doc.id,
@@ -44,9 +54,18 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 status: data.status || 'pending',
                 avatar: data.avatar || '',
                 completedLessonIds: data.completedLessonIds || [],
-                joinedAt: data.joinedAt
+                joinedAt: data.joinedAt // might be null/timestamp
             } as User);
         });
+
+        // Client-side Sort: Newest first
+        // Handle Timestamp objects or Dates or nulls
+        users.sort((a, b) => {
+            const timeA = a.joinedAt?.seconds ? a.joinedAt.seconds : 0;
+            const timeB = b.joinedAt?.seconds ? b.joinedAt.seconds : 0;
+            return timeB - timeA;
+        });
+
         setAllUsers(users);
     }, (error) => {
         console.error("Error fetching users:", error);
@@ -55,12 +74,13 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
   }, []);
 
   // -- Stats Calculation --
-  const pendingCount = allUsers.filter(u => u.status === 'pending').length;
+  const pendingUsers = allUsers.filter(u => u.status === 'pending');
+  const pendingCount = pendingUsers.length;
   const activeCount = allUsers.filter(u => u.status === 'active').length;
   const totalStudents = allUsers.length;
 
   const handleDeleteLesson = async (id: string) => {
-    if (window.confirm("Are you sure you want to permanently delete this lesson?")) {
+    if (window.confirm("Are you sure you want to permanently delete this module?")) {
         try {
             await deleteDoc(doc(db, "lessons", id));
         } catch (e) {
@@ -75,7 +95,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
           await updateDoc(doc(db, "users", userId), { status: newStatus });
       } catch (error) {
           console.error(`Error updating user status to ${newStatus}:`, error);
-          alert("Failed to update status.");
+          alert("Failed to update status. Check console for details.");
       }
   };
 
@@ -87,6 +107,38 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                console.error("Error deleting user:", error);
                alert("Failed to delete user.");
           }
+      }
+  };
+  
+  const handleScheduleClass = async (e: React.FormEvent) => {
+      e.preventDefault();
+      setIsScheduling(true);
+      try {
+          const classId = Date.now().toString();
+          const dateTime = new Date(`${newClassDate}T${newClassTime}`);
+          const newClass: ScheduledClass = {
+              id: classId,
+              title: newClassTitle,
+              date: dateTime.toISOString(),
+              durationMinutes: 60,
+              instructorName: "Apex Instructor"
+          };
+          
+          await setDoc(doc(db, "classes", classId), newClass);
+          setNewClassTitle('');
+          setNewClassDate('');
+          setNewClassTime('');
+      } catch (err) {
+          console.error("Error scheduling class", err);
+          alert("Failed to schedule class");
+      } finally {
+          setIsScheduling(false);
+      }
+  };
+  
+  const handleDeleteClass = async (id: string) => {
+      if (window.confirm("Cancel this class?")) {
+          await deleteDoc(doc(db, "classes", id));
       }
   };
 
@@ -104,7 +156,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
         <header className="flex flex-col md:flex-row justify-between items-end mb-10 gap-4">
             <div>
                 <h1 className="text-3xl font-bold text-white mb-2">Admin Control Center</h1>
-                <p className="text-slate-400">Manage curriculum, monitor student progress, and control access.</p>
+                <p className="text-slate-400">Manage curriculum, monitor student progress, and schedule classes.</p>
             </div>
             
             <div className="flex bg-slate-900 p-1 rounded-xl border border-slate-800">
@@ -112,7 +164,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                     onClick={() => setActiveTab('content')}
                     className={`px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center ${activeTab === 'content' ? 'bg-slate-800 text-white shadow-sm ring-1 ring-slate-700' : 'text-slate-500 hover:text-white'}`}
                 >
-                    <BookOpen size={16} className="mr-2" /> Curriculum
+                    <BookOpen size={16} className="mr-2" /> Modules
                 </button>
                 <button 
                     onClick={() => setActiveTab('users')}
@@ -125,8 +177,46 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                         </span>
                     )}
                 </button>
+                <button 
+                    onClick={() => setActiveTab('schedule')}
+                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center ${activeTab === 'schedule' ? 'bg-slate-800 text-white shadow-sm ring-1 ring-slate-700' : 'text-slate-500 hover:text-white'}`}
+                >
+                    <Calendar size={16} className="mr-2" /> Live Schedule
+                </button>
             </div>
         </header>
+
+        {/* 1. URGENT APPROVAL SECTION */}
+        {pendingCount > 0 && (
+            <div className="mb-8 bg-slate-900 border border-yellow-500/30 rounded-2xl p-6 shadow-2xl shadow-yellow-500/5 relative overflow-hidden">
+                <div className="absolute top-0 left-0 w-1 h-full bg-yellow-500"></div>
+                <div className="flex justify-between items-center mb-4">
+                    <h2 className="text-lg font-bold text-white flex items-center">
+                        <Clock className="text-yellow-500 mr-2" size={20} />
+                        Pending Approvals ({pendingCount})
+                    </h2>
+                    <button onClick={() => setActiveTab('users')} className="text-sm text-yellow-500 hover:underline">View All</button>
+                </div>
+                <div className="space-y-3">
+                    {pendingUsers.slice(0, 3).map(user => (
+                        <div key={user.id} className="flex items-center justify-between bg-slate-950 p-3 rounded-xl border border-slate-800">
+                            <div className="flex items-center">
+                                <img src={user.avatar} className="w-8 h-8 rounded-full mr-3" alt=""/>
+                                <div>
+                                    <div className="text-sm font-bold text-white">{user.name}</div>
+                                    <div className="text-xs text-slate-500">{user.email}</div>
+                                </div>
+                            </div>
+                            <div className="flex gap-2">
+                                <button onClick={() => handleUpdateStatus(user.id, 'active')} className="bg-green-500/20 text-green-400 px-3 py-1 rounded-lg text-xs font-bold hover:bg-green-500/30">Approve</button>
+                                <button onClick={() => handleUpdateStatus(user.id, 'rejected')} className="bg-red-500/20 text-red-400 px-3 py-1 rounded-lg text-xs font-bold hover:bg-red-500/30">Reject</button>
+                            </div>
+                        </div>
+                    ))}
+                    {pendingCount > 3 && <div className="text-center text-xs text-slate-500">...and {pendingCount - 3} more</div>}
+                </div>
+            </div>
+        )}
 
         {/* Quick Stats */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-10">
@@ -151,7 +241,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
             <div className="bg-slate-900 p-6 rounded-2xl border border-slate-800 relative overflow-hidden">
                 <div className="flex items-center justify-between mb-4 relative z-10">
                     <div className="p-3 bg-yellow-500/10 rounded-xl text-yellow-400"><Clock size={24} /></div>
-                    <span className="text-slate-500 text-xs font-bold uppercase">Pending Approval</span>
+                    <span className="text-slate-500 text-xs font-bold uppercase">Pending</span>
                 </div>
                 <p className="text-3xl font-bold text-white relative z-10">{pendingCount}</p>
                  <div className="absolute top-0 right-0 w-24 h-24 bg-yellow-500/5 rounded-full blur-2xl -mr-6 -mt-6"></div>
@@ -160,7 +250,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
             <div className="bg-slate-900 p-6 rounded-2xl border border-slate-800 cursor-pointer hover:border-red-500/50 transition-all group relative overflow-hidden" onClick={onStartLiveClass}>
                 <div className="flex items-center justify-between mb-4 relative z-10">
                     <div className="p-3 bg-red-500/10 rounded-xl text-red-400 group-hover:bg-red-500 group-hover:text-white transition-colors"><Video size={24} /></div>
-                    <span className="text-slate-500 text-xs font-bold uppercase group-hover:text-white/70">Live Room</span>
+                    <span className="text-slate-500 text-xs font-bold uppercase group-hover:text-white/70">Instant Live</span>
                 </div>
                 <p className="text-lg font-bold text-white flex items-center relative z-10">
                     Start Session <span className="ml-2 w-2 h-2 rounded-full bg-red-500 animate-pulse"></span>
@@ -168,7 +258,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
             </div>
         </div>
 
-        {activeTab === 'content' ? (
+        {activeTab === 'content' && (
             <>
                 <div className="flex justify-between items-center mb-6">
                     <h2 className="text-xl font-bold text-white">Course Curriculum</h2>
@@ -177,7 +267,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                         className="bg-primary-600 hover:bg-primary-500 text-white px-4 py-2 rounded-lg font-medium flex items-center shadow-lg shadow-primary-500/20 transition-all text-sm"
                     >
                         <Plus size={16} className="mr-2" />
-                        New Lesson
+                        Create Module
                     </button>
                 </div>
                 
@@ -185,10 +275,10 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                     <table className="w-full text-left border-collapse">
                         <thead className="bg-slate-950 border-b border-slate-800 text-slate-400 text-xs uppercase tracking-wider">
                             <tr>
-                                <th className="p-5 font-semibold">Lesson Title</th>
+                                <th className="p-5 font-semibold">Module Title</th>
                                 <th className="p-5 font-semibold">Level</th>
                                 <th className="p-5 font-semibold">Topics</th>
-                                <th className="p-5 font-semibold">Quiz</th>
+                                <th className="p-5 font-semibold">Test Qs</th>
                                 <th className="p-5 font-semibold text-right">Actions</th>
                             </tr>
                         </thead>
@@ -216,21 +306,21 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                                         </div>
                                     </td>
                                     <td className="p-5 text-slate-400 text-sm">
-                                        {lesson.quiz?.length || 0} Qs
+                                        {lesson.quiz?.length || 0}
                                     </td>
                                     <td className="p-5 text-right">
                                         <div className="flex items-center justify-end gap-2">
                                             <button 
                                                 onClick={() => onEditLesson(lesson)}
                                                 className="p-2 text-slate-400 hover:text-white hover:bg-slate-700 rounded-lg transition-colors"
-                                                title="Edit Lesson"
+                                                title="Edit Module"
                                             >
                                                 <Edit size={16} />
                                             </button>
                                             <button 
                                                 onClick={() => handleDeleteLesson(lesson.id)}
                                                 className="p-2 text-slate-400 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors"
-                                                title="Delete Lesson"
+                                                title="Delete Module"
                                             >
                                                 <Trash size={16} />
                                             </button>
@@ -242,12 +332,14 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                     </table>
                     {lessons.length === 0 && (
                         <div className="p-10 text-center text-slate-500">
-                            No lessons found. Click "New Lesson" to start building your curriculum.
+                            No modules found. Click "Create Module" to start building your curriculum.
                         </div>
                     )}
                 </div>
             </>
-        ) : (
+        )}
+
+        {activeTab === 'users' && (
             <>
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
                     <h2 className="text-xl font-bold text-white">Student Directory</h2>
@@ -385,10 +477,91 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 </div>
             </>
         )}
+        
+        {activeTab === 'schedule' && (
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                {/* Schedule Form */}
+                <div className="bg-slate-900 p-6 rounded-2xl border border-slate-800 h-fit">
+                    <h2 className="text-xl font-bold text-white mb-6">Schedule Class</h2>
+                    <form onSubmit={handleScheduleClass} className="space-y-4">
+                        <div>
+                            <label className="block text-sm text-slate-400 mb-1">Class Topic</label>
+                            <input 
+                                type="text"
+                                required
+                                value={newClassTitle}
+                                onChange={e => setNewClassTitle(e.target.value)}
+                                placeholder="e.g. Advanced Python Functions"
+                                className="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-2 text-white outline-none focus:border-primary-500"
+                            />
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                             <div>
+                                <label className="block text-sm text-slate-400 mb-1">Date</label>
+                                <input 
+                                    type="date"
+                                    required
+                                    value={newClassDate}
+                                    onChange={e => setNewClassDate(e.target.value)}
+                                    className="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-2 text-white outline-none focus:border-primary-500"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm text-slate-400 mb-1">Time</label>
+                                <input 
+                                    type="time"
+                                    required
+                                    value={newClassTime}
+                                    onChange={e => setNewClassTime(e.target.value)}
+                                    className="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-2 text-white outline-none focus:border-primary-500"
+                                />
+                            </div>
+                        </div>
+                        <button 
+                            type="submit" 
+                            disabled={isScheduling}
+                            className="w-full bg-primary-600 hover:bg-primary-500 text-white font-bold py-3 rounded-xl mt-4"
+                        >
+                            {isScheduling ? 'Scheduling...' : 'Schedule Class'}
+                        </button>
+                    </form>
+                </div>
+                
+                {/* Upcoming List */}
+                <div className="lg:col-span-2 space-y-4">
+                    <h2 className="text-xl font-bold text-white mb-2">Upcoming Sessions</h2>
+                    {scheduledClasses.length === 0 ? (
+                        <div className="text-center p-10 bg-slate-900 rounded-2xl border border-slate-800 text-slate-500">
+                            No classes scheduled.
+                        </div>
+                    ) : (
+                        scheduledClasses.map(cls => (
+                            <div key={cls.id} className="bg-slate-900 p-6 rounded-xl border border-slate-800 flex items-center justify-between">
+                                <div>
+                                    <div className="flex items-center mb-1">
+                                        <Calendar size={16} className="text-primary-500 mr-2" />
+                                        <span className="text-primary-400 text-sm font-bold">
+                                            {new Date(cls.date).toLocaleDateString()} at {new Date(cls.date).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                                        </span>
+                                    </div>
+                                    <h3 className="text-lg font-bold text-white">{cls.title}</h3>
+                                    <p className="text-sm text-slate-500">Instructor: {cls.instructorName}</p>
+                                </div>
+                                <button 
+                                    onClick={() => handleDeleteClass(cls.id)}
+                                    className="p-2 text-slate-500 hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-colors"
+                                >
+                                    <Trash size={18} />
+                                </button>
+                            </div>
+                        ))
+                    )}
+                </div>
+            </div>
+        )}
         </div>
     </div>
   );
 };
 
 export default AdminDashboard;
-    

@@ -45,6 +45,15 @@ export interface Lesson {
   quiz?: QuizQuestion[];
 }
 
+export interface ScheduledClass {
+  id: string;
+  title: string;
+  date: string; // ISO String for date/time
+  durationMinutes: number;
+  instructorName: string;
+  meetingLink?: string; // Optional, can default to internal Live room
+}
+
 export interface ChatMessage {
   id: string;
   sender: 'user' | 'system' | 'ai' | 'peer';
