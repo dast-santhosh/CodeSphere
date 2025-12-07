@@ -1,10 +1,11 @@
 
 import React, { useEffect, useRef, useState, memo } from 'react';
-import { Mic, MicOff, Video, VideoOff, MessageSquare, Users, ScreenShare, Activity, BarChart2, X, HelpCircle, Send, MoreVertical, Layout, Settings, Power } from 'lucide-react';
+import { Mic, MicOff, Video, VideoOff, MessageSquare, Users, ScreenShare, Activity, X, HelpCircle, Send, Power, Code, Smartphone, Minimize2, Maximize2 } from 'lucide-react';
 import { ChatMessage, Role, Poll } from '../types';
 import { db, auth } from '../services/firebase';
-import { collection, doc, setDoc, onSnapshot, addDoc, updateDoc, deleteDoc, serverTimestamp, query, orderBy } from 'firebase/firestore';
-import { getAiAssistance } from '../services/geminiService';
+import { collection, doc, setDoc, onSnapshot, addDoc, updateDoc, deleteDoc, serverTimestamp, query } from 'firebase/firestore';
+import { getAiAssistance, executePythonCode } from '../services/geminiService';
+import CodeEditor from './CodeEditor';
 
 interface LiveClassroomProps {
     role?: Role;
@@ -76,10 +77,47 @@ const LiveClassroom: React.FC<LiveClassroomProps> = ({ role = 'student', roomId,
   const [aiResponse, setAiResponse] = useState('');
   const [isAiThinking, setIsAiThinking] = useState(false);
   
+  // Coding Mode State
+  const [isCodingMode, setIsCodingMode] = useState(false);
+  const [code, setCode] = useState("# Live Class Scratchpad\nprint('Hello from the class!')");
+  const [codeOutput, setCodeOutput] = useState("");
+  const [codeError, setCodeError] = useState("");
+  const [isCodeRunning, setIsCodeRunning] = useState(false);
+
+  // Mobile Orientation
+  const [isPortrait, setIsPortrait] = useState(false);
+  
   const pcsRef = useRef<Map<string, RTCPeerConnection>>(new Map());
   const localStreamRef = useRef<MediaStream | null>(null);
   const screenStreamRef = useRef<MediaStream | null>(null);
   const unsubscribesRef = useRef<(() => void)[]>([]);
+
+  // Automatic Fullscreen on Join
+  useEffect(() => {
+    if (role === 'student' && roomId) {
+        // Attempt to request fullscreen
+        document.documentElement.requestFullscreen().catch(e => {
+            console.log("Auto-fullscreen prevented by browser interaction policy.", e);
+        });
+    }
+  }, [role, roomId]);
+
+  // Mobile Orientation Check
+  useEffect(() => {
+      const checkOrientation = () => {
+          // Simple check: Height > Width usually means portrait on mobile
+          const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+          if (isMobile && window.innerHeight > window.innerWidth) {
+              setIsPortrait(true);
+          } else {
+              setIsPortrait(false);
+          }
+      };
+
+      checkOrientation();
+      window.addEventListener('resize', checkOrientation);
+      return () => window.removeEventListener('resize', checkOrientation);
+  }, []);
 
   useEffect(() => {
     if (!roomId) return;
@@ -326,6 +364,21 @@ const LiveClassroom: React.FC<LiveClassroomProps> = ({ role = 'student', roomId,
       }
   };
 
+  const handleRunLiveCode = async (source: string) => {
+      setIsCodeRunning(true);
+      setCodeOutput('');
+      setCodeError('');
+      
+      const result = await executePythonCode(source);
+      
+      setIsCodeRunning(false);
+      if (result.error) {
+          setCodeError(result.error);
+      } else {
+          setCodeOutput(result.output);
+      }
+  };
+
   if (!roomId) {
       return (
           <div className="flex flex-col h-full bg-neutral-950 items-center justify-center text-center p-8">
@@ -345,6 +398,17 @@ const LiveClassroom: React.FC<LiveClassroomProps> = ({ role = 'student', roomId,
 
   return (
     <div className="flex flex-col h-full bg-neutral-950 font-sans relative">
+      {/* Mobile Orientation Overlay */}
+      {isPortrait && (
+          <div className="fixed inset-0 z-[60] bg-black flex flex-col items-center justify-center text-white p-8 text-center">
+              <Smartphone size={64} className="mb-6 animate-spin-slow text-blue-500" />
+              <h2 className="text-2xl font-bold mb-3">Please Rotate Device</h2>
+              <p className="text-neutral-400 max-w-xs">
+                  For the best classroom experience, please switch your device to landscape mode.
+              </p>
+          </div>
+      )}
+
       <header className="h-14 bg-neutral-900 border-b border-neutral-800 flex items-center justify-between px-6 shrink-0 z-20">
           <div className="flex items-center gap-3">
               <span className="flex h-3 w-3 relative">
@@ -364,8 +428,8 @@ const LiveClassroom: React.FC<LiveClassroomProps> = ({ role = 'student', roomId,
       {/* Main Container */}
       <div className="flex-1 flex relative overflow-hidden">
           
-          {/* Main Stage (Takes full width by default) */}
-          <div className="flex-1 flex flex-col relative w-full h-full">
+          {/* Main Stage */}
+          <div className="flex-1 flex flex-col relative w-full h-full transition-all duration-300">
               <div className="flex-1 bg-neutral-950 p-0 flex items-center justify-center relative">
                   {/* Video Container fills space */}
                   <div className="w-full h-full bg-black relative">
@@ -390,6 +454,34 @@ const LiveClassroom: React.FC<LiveClassroomProps> = ({ role = 'student', roomId,
                      ))}
                   </div>
               </div>
+              
+              {/* Simultaneous Coding Overlay */}
+              {isCodingMode && (
+                  <div className="absolute top-4 right-4 bottom-20 w-[45%] min-w-[350px] bg-neutral-900/90 backdrop-blur-md border border-neutral-700 shadow-2xl z-20 flex flex-col animate-in fade-in slide-in-from-right-10 rounded-none">
+                      <div className="flex items-center justify-between p-2.5 bg-neutral-800/80 border-b border-neutral-700">
+                           <div className="flex items-center gap-2">
+                               <Code size={16} className="text-blue-500" />
+                               <span className="text-xs font-bold text-white uppercase">Live Scratchpad</span>
+                           </div>
+                           <button onClick={() => setIsCodingMode(false)} className="text-neutral-400 hover:text-white p-1">
+                               <X size={16}/>
+                           </button>
+                      </div>
+                      <div className="flex-1 overflow-hidden relative">
+                           {/* Render Editor wrapper to ensure opacity handling if needed */}
+                           <div className="absolute inset-0 bg-neutral-900/50">
+                                <CodeEditor 
+                                    initialCode={code}
+                                    onChange={(val) => setCode(val)}
+                                    onRun={handleRunLiveCode}
+                                    output={codeOutput}
+                                    error={codeError}
+                                    isRunning={isCodeRunning}
+                                />
+                           </div>
+                      </div>
+                  </div>
+              )}
 
               {/* Control Bar */}
               <div className="h-16 bg-neutral-900/90 backdrop-blur border-t border-neutral-800 flex items-center justify-center gap-3 px-6 shrink-0 z-40">
@@ -411,6 +503,11 @@ const LiveClassroom: React.FC<LiveClassroomProps> = ({ role = 'student', roomId,
                   )}
 
                   <div className="w-px h-6 bg-neutral-700 mx-2"></div>
+                  
+                  {/* Coding Mode Toggle */}
+                  <button onClick={() => setIsCodingMode(!isCodingMode)} className={`p-2.5 rounded-none border border-transparent transition-all ${isCodingMode ? 'bg-purple-600/20 text-purple-400 border-purple-500/50' : 'bg-neutral-800 text-white hover:bg-neutral-700'}`} title="Open Python Editor">
+                      <Code size={20} />
+                  </button>
 
                   <button onClick={() => setIsChatOpen(!isChatOpen)} className={`p-2.5 rounded-none border border-transparent transition-all ${isChatOpen ? 'bg-blue-600/20 text-blue-400 border-blue-500/50' : 'bg-neutral-800 text-white hover:bg-neutral-700'}`} title="Chat">
                       <MessageSquare size={20} />

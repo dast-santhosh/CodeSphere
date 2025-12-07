@@ -53,6 +53,14 @@ const App: React.FC = () => {
     setTheme(prev => prev === 'dark' ? 'light' : 'dark');
   };
 
+  const toggleSidebar = () => {
+      setIsSidebarCollapsed(!isSidebarCollapsed);
+      // Trigger a window resize event to force the WebRTC video player (and other responsive elements) to recalculate aspect ratios
+      setTimeout(() => {
+          window.dispatchEvent(new Event('resize'));
+      }, 300); // Wait for transition
+  };
+
   // 1. Listen to Auth Changes and User Data Stream
   useEffect(() => {
     let unsubscribeUser: (() => void) | undefined;
@@ -287,7 +295,7 @@ const App: React.FC = () => {
         >
           {/* Toggle Button */}
           <button 
-            onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+            onClick={toggleSidebar}
             className="absolute -right-3 top-20 bg-neutral-800 border border-neutral-700 text-neutral-400 p-1 rounded-full shadow-md hover:text-white z-50"
           >
              {isSidebarCollapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
@@ -394,7 +402,7 @@ const App: React.FC = () => {
         </aside>
 
         {/* Main Content */}
-        <main className="flex-1 overflow-hidden relative">
+        <main className="flex-1 overflow-hidden relative transition-all duration-300">
           {currentView === 'dashboard' && (
             <Dashboard 
                 lessons={lessons} 
