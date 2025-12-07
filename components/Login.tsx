@@ -11,7 +11,14 @@ interface LoginProps {
   onLogin: (user: UserType) => void;
 }
 
-const ADMIN_UID = "L0whAW8oagQK3Ix12QEurfwV4zs1";
+// --- CONFIGURATION ---
+// Add email addresses here that should AUTOMATICALLY be Admins.
+// This is the safest way to bootstrap your first admin account.
+const ADMIN_EMAILS = [
+  "admin@apexcode.com", 
+  "test@example.com",
+  "stusanthosh5195@gmail.com"
+];
 
 const Login: React.FC<LoginProps> = ({ onLogin }) => {
   const [isSignUp, setIsSignUp] = useState(false);
@@ -36,6 +43,9 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
       let completedLessonIds: string[] = [];
       let progress: any = {};
 
+      // Check if this email is a Super Admin
+      const isSuperAdmin = ADMIN_EMAILS.includes(email.toLowerCase());
+
       if (isSignUp) {
         // Sign Up
         const userCredential = await createUserWithEmailAndPassword(auth, email, password);
@@ -44,10 +54,14 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
         // Update Profile Name
         await updateProfile(firebaseUser, { displayName: name });
 
-        // Auto-promote if matches hardcoded Admin UID
-        if (firebaseUser.uid === ADMIN_UID) {
+        // Force Admin settings if in whitelist
+        if (isSuperAdmin) {
             userRole = 'admin';
-            userStatus = 'active'; // Admin is always active
+            userStatus = 'active';
+        } else if (userRole === 'admin') {
+            // If user selected Admin in UI but is not in whitelist, set active (or keep pending if you prefer)
+            // For now, we allow UI selection to set role, but you might want to restrict this in production
+            userStatus = 'active'; 
         } else {
             // Students are pending by default
             userStatus = 'pending';
@@ -77,19 +91,18 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
           let dbRole = data.role as 'student' | 'admin';
           let dbStatus = data.status as UserStatus || 'pending';
           
-          // FORCE ADMIN PROMOTION FOR SPECIFIC UID
-          if (firebaseUser.uid === ADMIN_UID) {
-             if (dbRole !== 'admin' || dbStatus !== 'active') {
-                await updateDoc(doc(db, "users", firebaseUser.uid), { role: 'admin', status: 'active' });
-                dbRole = 'admin';
-                dbStatus = 'active';
-             }
+          // AUTO-FIX: If email is in whitelist but DB says student, promote them now
+          if (isSuperAdmin && dbRole !== 'admin') {
+              dbRole = 'admin';
+              dbStatus = 'active';
+              await updateDoc(doc(db, "users", firebaseUser.uid), { role: 'admin', status: 'active' });
           }
           
-          // STRICT ROLE CHECK FOR ADMIN LOGIN
+          // STRICT ROLE CHECK FOR ADMIN LOGIN UI
+          // If trying to login via Admin tab, but DB says student (and not a super admin fix above)
           if (role === 'admin' && dbRole !== 'admin') {
              await signOut(auth); // Sign out immediately
-             throw new Error("Access Denied: This account does not have Instructor privileges.");
+             throw new Error("Access Denied: You do not have administrator privileges.");
           }
 
           userRole = dbRole;
@@ -97,16 +110,10 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
           completedLessonIds = data.completedLessonIds || [];
           progress = data.progress || {};
         } else {
-            // Fallback for legacy users
-            if (firebaseUser.uid === ADMIN_UID) {
-                userRole = 'admin';
-                userStatus = 'active';
-                await setDoc(doc(db, "users", firebaseUser.uid), { role: 'admin', status: 'active', progress: {} }, { merge: true });
-            } else {
-                userRole = 'student';
-                userStatus = 'pending'; 
-                await setDoc(doc(db, "users", firebaseUser.uid), { role: 'student', status: 'pending', progress: {} }, { merge: true });
-            }
+            // Fallback: Create doc if missing
+             userRole = isSuperAdmin ? 'admin' : 'student';
+             userStatus = isSuperAdmin ? 'active' : 'pending';
+             await setDoc(doc(db, "users", firebaseUser.uid), { role: userRole, status: userStatus, progress: {} }, { merge: true });
         }
       }
 
@@ -139,6 +146,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
       const provider = new GoogleAuthProvider();
       const result = await signInWithPopup(auth, provider);
       const user = result.user;
+      const userEmail = user.email ? user.email.toLowerCase() : '';
       
       const userDocRef = doc(db, "users", user.uid);
       const userDoc = await getDoc(userDocRef);
@@ -147,17 +155,21 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
       let userStatus: UserStatus = 'pending';
       let completedLessonIds: string[] = [];
       let progress: any = {};
+      
+      // Check Whitelist
+      const isSuperAdmin = ADMIN_EMAILS.includes(userEmail);
 
       if (!userDoc.exists()) {
-          // Check for hardcoded Admin UID on creation
-          if (user.uid === ADMIN_UID) {
+          // Create new user
+          if (isSuperAdmin) {
               userRole = 'admin';
+              userStatus = 'active';
+          } else if (userRole === 'admin') {
               userStatus = 'active';
           } else {
               userStatus = 'pending';
           }
 
-          // Create new user with selected role from the UI state
           await setDoc(userDocRef, {
               role: userRole,
               status: userStatus,
@@ -169,25 +181,23 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
               joinedAt: serverTimestamp()
           });
       } else {
-          // Check admin privileges if trying to login as admin
+          // Existing User Logic
           const userData = userDoc.data();
           userRole = userData.role;
           userStatus = userData.status || 'pending';
           completedLessonIds = userData.completedLessonIds || [];
           progress = userData.progress || {};
 
-          // FORCE ADMIN PROMOTION FOR SPECIFIC UID
-          if (user.uid === ADMIN_UID) {
-              if (userRole !== 'admin' || userStatus !== 'active') {
-                   await updateDoc(userDocRef, { role: 'admin', status: 'active' });
-                   userRole = 'admin';
-                   userStatus = 'active';
-              }
+          // AUTO-FIX: Promote if whitelist matches
+          if (isSuperAdmin && userRole !== 'admin') {
+              userRole = 'admin';
+              userStatus = 'active';
+              await updateDoc(userDocRef, { role: 'admin', status: 'active' });
           }
 
           if (role === 'admin' && userRole !== 'admin') {
               await signOut(auth);
-              throw new Error("Access Denied: This account does not have Instructor privileges.");
+              throw new Error("Access Denied: You do not have administrator privileges.");
           }
       }
 
@@ -216,9 +226,12 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
     setShowApiLink(false);
 
     // Provide more helpful error messages for common Firebase issues
-    if (err.message.includes("Cloud Firestore API has not been used") || err.code === 'permission-denied') {
+    if (err.message.includes("Cloud Firestore API has not been used")) {
       msg = "Database API is not enabled. Please click the link below to enable it.";
       setShowApiLink(true);
+    } else if (err.code === 'permission-denied') {
+      // Differentiate between API error and Rules error
+      msg = "Access Denied: You do not have permission to perform this action.";
     } else if (err.code === 'auth/configuration-not-found' || err.code === 'auth/operation-not-allowed') {
       msg = "Login method not enabled. Please check Firebase Console.";
     } else if (err.code === 'auth/email-already-in-use') {
@@ -275,7 +288,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
                 ${role === 'admin' ? 'bg-slate-800 text-white shadow-sm' : 'text-slate-500 hover:text-slate-300'}`}
             >
                 <ShieldCheck size={16} className="mr-2" />
-                {isSignUp ? 'Instructor' : 'Admin Login'}
+                {isSignUp ? 'Admin' : 'Admin Login'}
             </button>
         </div>
 

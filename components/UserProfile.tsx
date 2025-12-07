@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { User, Lesson } from '../types';
+import { User, Lesson, LessonProgress } from '../types';
 import { auth, db } from '../services/firebase';
 import { updateProfile } from 'firebase/auth';
 import { doc, updateDoc } from 'firebase/firestore';
@@ -67,9 +67,10 @@ const UserProfile: React.FC<UserProfileProps> = ({ user, lessons, onLogout, onUp
   if (user.progress) {
       // Get all unique dates (YYYY-MM-DD)
       const dates = new Set<string>();
-      Object.values(user.progress).forEach(p => {
-          if (p.completedAt) {
-              dates.add(p.completedAt.split('T')[0]);
+      Object.values(user.progress).forEach((p) => {
+          const progress = p as LessonProgress;
+          if (progress.completedAt) {
+              dates.add(progress.completedAt.split('T')[0]);
           }
       });
       
@@ -103,8 +104,9 @@ const UserProfile: React.FC<UserProfileProps> = ({ user, lessons, onLogout, onUp
   // 4. Calculate Quizzes Passed (Score >= 70)
   let quizzesPassed = 0;
   if (user.progress) {
-      Object.values(user.progress).forEach(p => {
-          if (p.score !== undefined && p.score >= 70) {
+      Object.values(user.progress).forEach((p) => {
+          const progress = p as LessonProgress;
+          if (progress.score !== undefined && progress.score >= 70) {
               quizzesPassed++;
           }
       });

@@ -1,0 +1,35 @@
+
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Helper function to check if the user is signed in
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    // Helper function to check if the user is an admin
+    // This reads the user's profile from the 'users' collection to check the 'role' field
+    function isAdmin() {
+      return isSignedIn() && 
+             exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    // --- USERS COLLECTION ---
+    match /users/{userId} {
+      // Users can read and write their own profile (for signup & progress updates)
+      // Admins can read and write any profile (for approval/rejection)
+      allow read, write: if isSignedIn() && (request.auth.uid == userId || isAdmin());
+    }
+
+    // --- LESSONS COLLECTION ---
+    match /lessons/{lessonId} {
+      // Any signed-in user (student or admin) can read lessons
+      allow read: if isSignedIn();
+      
+      // Only admins can create, update, or delete lessons
+      allow write: if isAdmin();
+    }
+  }
+}

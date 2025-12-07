@@ -18,8 +18,6 @@ import { collection, onSnapshot, doc, getDoc, writeBatch, updateDoc, arrayUnion,
 
 type View = 'dashboard' | 'learn' | 'live' | 'sandbox' | 'profile' | 'admin-dashboard' | 'lesson-editor';
 
-const ADMIN_UID = "L0whAW8oagQK3Ix12QEurfwV4zs1";
-
 const App: React.FC = () => {
   // Auth State
   const [user, setUser] = useState<User | null>(null);
@@ -40,15 +38,6 @@ const App: React.FC = () => {
 
     const unsubscribeAuth = onAuthStateChanged(auth, async (firebaseUser) => {
         if (firebaseUser) {
-            // Safety Check: Force admin role if UID matches, even if not caught by Login
-            if (firebaseUser.uid === ADMIN_UID) {
-                try {
-                     await setDoc(doc(db, "users", firebaseUser.uid), { role: 'admin', status: 'active' }, { merge: true });
-                } catch (e) {
-                    console.error("Failed to auto-promote admin", e);
-                }
-            }
-
             // Real-time listener for User Profile
             // This handles role updates and lesson completion sync immediately
             unsubscribeUser = onSnapshot(doc(db, "users", firebaseUser.uid), (docSnapshot) => {
@@ -100,19 +89,23 @@ const App: React.FC = () => {
 
   // 2. Fetch Lessons
   useEffect(() => {
+    // SECURITY: Do not attempt to fetch lessons if user is not logged in.
+    // This prevents "Missing or insufficient permissions" errors on app load.
+    if (!user) return;
+
     const unsubscribe = onSnapshot(collection(db, "lessons"), (snapshot) => {
         const fetchedLessons: Lesson[] = [];
         snapshot.forEach((doc) => {
             fetchedLessons.push(doc.data() as Lesson);
         });
         
-        // Sort logic if needed (e.g. by Difficulty or ID)
+        // Sort logic (by ID)
         fetchedLessons.sort((a, b) => a.id.localeCompare(b.id));
 
         setLessons(fetchedLessons);
         
-        // Auto-Seed if empty and connected
-        if (fetchedLessons.length === 0 && !dbError) {
+        // Auto-Seed if empty and connected AND User is Admin
+        if (fetchedLessons.length === 0 && !dbError && user.role === 'admin') {
             seedDatabase();
         }
     }, (error) => {
@@ -123,7 +116,7 @@ const App: React.FC = () => {
     });
 
     return () => unsubscribe();
-  }, [dbError]);
+  }, [user?.id, user?.role, dbError]);
 
   const seedDatabase = async () => {
     try {
