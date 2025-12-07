@@ -11,17 +11,13 @@ interface LiveClassroomProps {
     onLeave?: () => void;
 }
 
-// WebRTC Configuration
 const iceServers = {
   iceServers: [
-    {
-      urls: ['stun:stun1.l.google.com:19302', 'stun:stun2.l.google.com:19302'],
-    },
+    { urls: ['stun:stun1.l.google.com:19302', 'stun:stun2.l.google.com:19302'] },
   ],
   iceCandidatePoolSize: 10,
 };
 
-// --- MEMOIZED VIDEO PLAYER ---
 const VideoPlayer = memo(({ stream, isLocal, label, isScreenShare }: { stream: MediaStream | null, isLocal: boolean, label?: string, isScreenShare?: boolean }) => {
     const videoRef = useRef<HTMLVideoElement>(null);
 
@@ -33,9 +29,9 @@ const VideoPlayer = memo(({ stream, isLocal, label, isScreenShare }: { stream: M
 
     if (!stream) {
         return (
-            <div className="w-full h-full flex items-center justify-center flex-col text-slate-400 bg-slate-900 rounded-lg">
-                <div className="w-16 h-16 bg-slate-800 rounded-full flex items-center justify-center mb-4">
-                    <Activity size={32} className="text-slate-500" />
+            <div className="w-full h-full flex items-center justify-center flex-col text-neutral-400 bg-neutral-900">
+                <div className="w-16 h-16 bg-neutral-800 flex items-center justify-center mb-4">
+                    <Activity size={32} className="text-neutral-500" />
                 </div>
                 <p className="text-sm font-medium">Waiting for stream...</p>
             </div>
@@ -43,15 +39,15 @@ const VideoPlayer = memo(({ stream, isLocal, label, isScreenShare }: { stream: M
     }
 
     return (
-        <div className="w-full h-full relative bg-black rounded-lg overflow-hidden group">
+        <div className="w-full h-full relative bg-black overflow-hidden group">
             <video
                 ref={videoRef}
                 autoPlay
                 playsInline
                 muted={isLocal} 
-                className={`w-full h-full object-contain bg-slate-900 ${isLocal && !isScreenShare ? 'transform scale-x-[-1]' : ''}`}
+                className={`w-full h-full object-contain bg-neutral-900 ${isLocal && !isScreenShare ? 'transform scale-x-[-1]' : ''}`}
             />
-            <div className="absolute bottom-4 left-4 px-3 py-1 bg-black/60 backdrop-blur-sm rounded text-xs text-white font-medium z-10">
+            <div className="absolute bottom-4 left-4 px-3 py-1 bg-black/60 backdrop-blur-sm text-xs text-white font-medium z-10">
                 {label} {isLocal && "(You)"}
             </div>
         </div>
@@ -66,7 +62,6 @@ const LiveClassroom: React.FC<LiveClassroomProps> = ({ role = 'student', onLeave
   const [isScreenSharing, setIsScreenSharing] = useState(false);
   const isScreenSharingRef = useRef(false);
   
-  // Chat & Polls
   const [activeTab, setActiveTab] = useState<'chat' | 'polls'>('chat');
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [newMessage, setNewMessage] = useState('');
@@ -74,13 +69,11 @@ const LiveClassroom: React.FC<LiveClassroomProps> = ({ role = 'student', onLeave
   const [newPollQuestion, setNewPollQuestion] = useState('');
   const [newPollOptions, setNewPollOptions] = useState(['', '']);
 
-  // AI Doubt Solver
   const [showAiHelp, setShowAiHelp] = useState(false);
   const [aiQuestion, setAiQuestion] = useState('');
   const [aiResponse, setAiResponse] = useState('');
   const [isAiThinking, setIsAiThinking] = useState(false);
   
-  // Refs
   const pcsRef = useRef<Map<string, RTCPeerConnection>>(new Map());
   const localStreamRef = useRef<MediaStream | null>(null);
   const screenStreamRef = useRef<MediaStream | null>(null);
@@ -108,7 +101,6 @@ const LiveClassroom: React.FC<LiveClassroomProps> = ({ role = 'student', onLeave
     return () => { cleanup(); };
   }, []);
 
-  // Listeners (Chat & Polls)
   useEffect(() => {
      const q = query(collection(db, `rooms/${ROOM_ID}/messages`));
      const unsub = onSnapshot(q, (snapshot) => {
@@ -322,18 +314,17 @@ const LiveClassroom: React.FC<LiveClassroomProps> = ({ role = 'student', onLeave
   };
 
   return (
-    <div className="flex flex-col h-full bg-slate-950 font-sans">
-      {/* Header */}
-      <header className="h-14 bg-slate-900 border-b border-slate-800 flex items-center justify-between px-6 shrink-0 z-20">
+    <div className="flex flex-col h-full bg-neutral-950 font-sans">
+      <header className="h-14 bg-neutral-900 border-b border-neutral-800 flex items-center justify-between px-6 shrink-0 z-20">
           <div className="flex items-center gap-3">
               <span className="flex h-3 w-3 relative">
-                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-                 <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
+                 <span className="animate-ping absolute inline-flex h-full w-full bg-red-400 opacity-75"></span>
+                 <span className="relative inline-flex h-3 w-3 bg-red-500"></span>
               </span>
               <h1 className="text-white font-semibold text-sm tracking-wide">Python Masterclass: Live Session</h1>
           </div>
           <div className="flex items-center gap-4">
-              <div className="flex items-center text-slate-400 text-xs">
+              <div className="flex items-center text-neutral-400 text-xs">
                   <Users size={14} className="mr-1.5" />
                   <span>{role === 'admin' ? remoteStreams.size : (remoteStreams.size > 0 ? 'Connected' : 'Connecting...')}</span>
               </div>
@@ -343,8 +334,8 @@ const LiveClassroom: React.FC<LiveClassroomProps> = ({ role = 'student', onLeave
       <div className="flex-1 flex overflow-hidden">
           {/* Main Stage */}
           <div className="flex-1 flex flex-col relative">
-              <div className="flex-1 bg-slate-950 p-6 flex items-center justify-center">
-                  <div className="w-full max-w-5xl aspect-video bg-black rounded-lg shadow-xl overflow-hidden border border-slate-800 relative">
+              <div className="flex-1 bg-neutral-950 p-6 flex items-center justify-center">
+                  <div className="w-full max-w-5xl aspect-video bg-black shadow-xl overflow-hidden border border-neutral-800 relative">
                      {role === 'admin' ? (
                          <VideoPlayer 
                             key={localStream?.id || 'local'}
@@ -368,51 +359,51 @@ const LiveClassroom: React.FC<LiveClassroomProps> = ({ role = 'student', onLeave
               </div>
 
               {/* Control Bar */}
-              <div className="h-20 bg-slate-900 border-t border-slate-800 flex items-center justify-center gap-3 px-6 shrink-0">
+              <div className="h-20 bg-neutral-900 border-t border-neutral-800 flex items-center justify-center gap-3 px-6 shrink-0">
                   <button onClick={() => { if (localStreamRef.current) { localStreamRef.current.getAudioTracks().forEach(t => t.enabled = !isMicOn); setIsMicOn(!isMicOn); }}} 
-                    className={`p-3 rounded-full transition-all border ${isMicOn ? 'bg-slate-800 border-slate-700 text-white hover:bg-slate-700' : 'bg-red-500/10 border-red-500/50 text-red-500'}`} title="Toggle Mic">
+                    className={`p-3 transition-all border ${isMicOn ? 'bg-neutral-800 border-neutral-700 text-white hover:bg-neutral-700' : 'bg-red-500/10 border-red-500/50 text-red-500'}`} title="Toggle Mic">
                     {isMicOn ? <Mic size={20} /> : <MicOff size={20} />}
                   </button>
                   
                   <button onClick={() => { if (localStreamRef.current) { localStreamRef.current.getVideoTracks().forEach(t => t.enabled = !isVideoOn); setIsVideoOn(!isVideoOn); }}} 
-                    className={`p-3 rounded-full transition-all border ${isVideoOn ? 'bg-slate-800 border-slate-700 text-white hover:bg-slate-700' : 'bg-red-500/10 border-red-500/50 text-red-500'}`} title="Toggle Video">
+                    className={`p-3 transition-all border ${isVideoOn ? 'bg-neutral-800 border-neutral-700 text-white hover:bg-neutral-700' : 'bg-red-500/10 border-red-500/50 text-red-500'}`} title="Toggle Video">
                     {isVideoOn ? <Video size={20} /> : <VideoOff size={20} />}
                   </button>
 
                   {role === 'admin' && (
                     <button onClick={toggleScreenShare} 
-                        className={`p-3 rounded-full transition-all border ${isScreenSharing ? 'bg-blue-600 border-blue-500 text-white' : 'bg-slate-800 border-slate-700 text-white hover:bg-slate-700'}`} title="Share Screen">
+                        className={`p-3 transition-all border ${isScreenSharing ? 'bg-blue-600 border-blue-500 text-white' : 'bg-neutral-800 border-neutral-700 text-white hover:bg-neutral-700'}`} title="Share Screen">
                         <ScreenShare size={20} />
                     </button>
                   )}
 
-                  <div className="w-px h-8 bg-slate-700 mx-2"></div>
+                  <div className="w-px h-8 bg-neutral-700 mx-2"></div>
 
-                  <button onClick={() => setShowAiHelp(!showAiHelp)} className="p-3 rounded-full bg-slate-800 border border-slate-700 text-purple-400 hover:bg-slate-700 transition-all" title="AI Assistant">
+                  <button onClick={() => setShowAiHelp(!showAiHelp)} className="p-3 bg-neutral-800 border border-neutral-700 text-purple-400 hover:bg-neutral-700 transition-all" title="AI Assistant">
                       <HelpCircle size={20} />
                   </button>
 
-                  <button onClick={onLeave} className="px-6 py-2.5 bg-red-600 hover:bg-red-700 text-white text-sm font-medium rounded-full ml-4 transition-colors">
+                  <button onClick={onLeave} className="px-6 py-2.5 bg-red-600 hover:bg-red-700 text-white text-sm font-medium ml-4 transition-colors">
                       Leave Class
                   </button>
               </div>
           </div>
 
           {/* Right Sidebar (Chat) */}
-          <div className="w-80 bg-slate-900 border-l border-slate-800 flex flex-col shrink-0">
-              <div className="flex border-b border-slate-800">
-                  <button onClick={() => setActiveTab('chat')} className={`flex-1 py-3 text-xs font-semibold uppercase tracking-wide ${activeTab === 'chat' ? 'text-blue-400 border-b-2 border-blue-400 bg-slate-800/50' : 'text-slate-500 hover:bg-slate-800/30'}`}>Chat</button>
-                  <button onClick={() => setActiveTab('polls')} className={`flex-1 py-3 text-xs font-semibold uppercase tracking-wide ${activeTab === 'polls' ? 'text-blue-400 border-b-2 border-blue-400 bg-slate-800/50' : 'text-slate-500 hover:bg-slate-800/30'}`}>Polls</button>
+          <div className="w-80 bg-neutral-900 border-l border-neutral-800 flex flex-col shrink-0">
+              <div className="flex border-b border-neutral-800">
+                  <button onClick={() => setActiveTab('chat')} className={`flex-1 py-3 text-xs font-semibold uppercase tracking-wide ${activeTab === 'chat' ? 'text-blue-400 border-b-2 border-blue-400 bg-neutral-800/50' : 'text-neutral-500 hover:bg-neutral-800/30'}`}>Chat</button>
+                  <button onClick={() => setActiveTab('polls')} className={`flex-1 py-3 text-xs font-semibold uppercase tracking-wide ${activeTab === 'polls' ? 'text-blue-400 border-b-2 border-blue-400 bg-neutral-800/50' : 'text-neutral-500 hover:bg-neutral-800/30'}`}>Polls</button>
               </div>
 
-              <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-slate-900">
+              <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-neutral-900">
                   {activeTab === 'chat' ? (
                       chatMessages.map(msg => {
                           const isMe = msg.senderName.includes(auth.currentUser?.displayName || 'xx');
                           return (
                             <div key={msg.id} className={`flex flex-col ${isMe ? 'items-end' : 'items-start'}`}>
-                                <div className="text-[10px] text-slate-500 mb-1 px-1">{msg.senderName}</div>
-                                <div className={`px-3 py-2 rounded-lg text-sm max-w-[90%] ${isMe ? 'bg-blue-600 text-white' : 'bg-slate-800 text-slate-200 border border-slate-700'}`}>
+                                <div className="text-[10px] text-neutral-500 mb-1 px-1">{msg.senderName}</div>
+                                <div className={`px-3 py-2 text-sm max-w-[90%] ${isMe ? 'bg-blue-600 text-white' : 'bg-neutral-800 text-neutral-200 border border-neutral-700'}`}>
                                     {msg.text}
                                 </div>
                             </div>
@@ -421,29 +412,29 @@ const LiveClassroom: React.FC<LiveClassroomProps> = ({ role = 'student', onLeave
                   ) : (
                       <div className="space-y-4">
                           {role === 'admin' && (
-                              <div className="p-3 bg-slate-800 rounded border border-slate-700">
-                                  <input value={newPollQuestion} onChange={e => setNewPollQuestion(e.target.value)} placeholder="Poll Question" className="w-full bg-slate-900 border border-slate-700 rounded p-2 text-sm text-white mb-2 focus:border-blue-500 outline-none" />
+                              <div className="p-3 bg-neutral-800 border border-neutral-700">
+                                  <input value={newPollQuestion} onChange={e => setNewPollQuestion(e.target.value)} placeholder="Poll Question" className="w-full bg-neutral-900 border border-neutral-700 p-2 text-sm text-white mb-2 focus:border-blue-500 outline-none" />
                                   {newPollOptions.map((opt, idx) => (
-                                      <input key={idx} value={opt} onChange={e => {const n=[...newPollOptions];n[idx]=e.target.value;setNewPollOptions(n)}} placeholder={`Option ${idx+1}`} className="w-full bg-slate-900 border border-slate-700 rounded p-1.5 text-xs text-white mb-2 focus:border-blue-500 outline-none" />
+                                      <input key={idx} value={opt} onChange={e => {const n=[...newPollOptions];n[idx]=e.target.value;setNewPollOptions(n)}} placeholder={`Option ${idx+1}`} className="w-full bg-neutral-900 border border-neutral-700 p-1.5 text-xs text-white mb-2 focus:border-blue-500 outline-none" />
                                   ))}
                                   <div className="flex gap-2">
-                                      <button onClick={()=>setNewPollOptions([...newPollOptions, ''])} className="text-xs bg-slate-700 text-slate-300 px-2 py-1 rounded hover:bg-slate-600">+ Opt</button>
-                                      <button onClick={createPoll} className="text-xs bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-500 ml-auto font-medium">Create</button>
+                                      <button onClick={()=>setNewPollOptions([...newPollOptions, ''])} className="text-xs bg-neutral-700 text-neutral-300 px-2 py-1 hover:bg-neutral-600">+ Opt</button>
+                                      <button onClick={createPoll} className="text-xs bg-blue-600 text-white px-3 py-1 hover:bg-blue-500 ml-auto font-medium">Create</button>
                                   </div>
                               </div>
                           )}
                           {polls.map(poll => (
-                              <div key={poll.id} className="bg-slate-800/50 p-3 rounded-lg border border-slate-700">
+                              <div key={poll.id} className="bg-neutral-800/50 p-3 border border-neutral-700">
                                   <h4 className="text-sm font-medium text-white mb-2">{poll.question}</h4>
                                   <div className="space-y-1.5">
                                       {poll.options.map(opt => {
                                           const total = poll.options.reduce((a,b)=>a+b.votes,0);
                                           const pct = total>0?Math.round((opt.votes/total)*100):0;
                                           return (
-                                              <button key={opt.id} onClick={()=>votePoll(poll.id, opt.id)} className="w-full relative h-8 bg-slate-900 rounded border border-slate-700 overflow-hidden text-left hover:border-blue-500/50 transition-colors">
+                                              <button key={opt.id} onClick={()=>votePoll(poll.id, opt.id)} className="w-full relative h-8 bg-neutral-900 border border-neutral-700 overflow-hidden text-left hover:border-blue-500/50 transition-colors">
                                                   <div className="absolute top-0 left-0 h-full bg-blue-500/20" style={{width: `${pct}%`}}></div>
                                                   <div className="absolute inset-0 flex items-center justify-between px-3">
-                                                      <span className="text-xs text-slate-300 truncate">{opt.text}</span>
+                                                      <span className="text-xs text-neutral-300 truncate">{opt.text}</span>
                                                       <span className="text-xs font-bold text-blue-400">{pct}%</span>
                                                   </div>
                                               </button>
@@ -457,29 +448,28 @@ const LiveClassroom: React.FC<LiveClassroomProps> = ({ role = 'student', onLeave
               </div>
 
               {activeTab === 'chat' && (
-                <form onSubmit={handleSendMessage} className="p-3 bg-slate-900 border-t border-slate-800">
+                <form onSubmit={handleSendMessage} className="p-3 bg-neutral-900 border-t border-neutral-800">
                     <div className="relative">
-                        <input value={newMessage} onChange={e => setNewMessage(e.target.value)} placeholder="Type a message..." className="w-full bg-slate-950 border border-slate-700 rounded-md pl-3 pr-10 py-2.5 text-sm text-white focus:outline-none focus:border-blue-500" />
-                        <button type="submit" className="absolute right-1.5 top-1.5 p-1 text-slate-400 hover:text-blue-500 transition-colors"><Send size={16} /></button>
+                        <input value={newMessage} onChange={e => setNewMessage(e.target.value)} placeholder="Type a message..." className="w-full bg-neutral-950 border border-neutral-700 pl-3 pr-10 py-2.5 text-sm text-white focus:outline-none focus:border-blue-500" />
+                        <button type="submit" className="absolute right-1.5 top-1.5 p-1 text-neutral-400 hover:text-blue-500 transition-colors"><Send size={16} /></button>
                     </div>
                 </form>
               )}
           </div>
       </div>
 
-      {/* AI Popup */}
       {showAiHelp && (
-        <div className="absolute bottom-24 right-96 w-80 bg-slate-900 border border-slate-700 rounded-lg shadow-xl overflow-hidden flex flex-col z-50">
-            <div className="bg-slate-800 p-3 border-b border-slate-700 flex justify-between items-center">
+        <div className="absolute bottom-24 right-96 w-80 bg-neutral-900 border border-neutral-700 shadow-xl overflow-hidden flex flex-col z-50">
+            <div className="bg-neutral-800 p-3 border-b border-neutral-700 flex justify-between items-center">
                 <span className="text-xs font-bold text-white uppercase flex items-center"><Activity size={12} className="mr-1 text-purple-400"/> AI Assistant</span>
-                <button onClick={()=>setShowAiHelp(false)} className="text-slate-400 hover:text-white"><X size={14}/></button>
+                <button onClick={()=>setShowAiHelp(false)} className="text-neutral-400 hover:text-white"><X size={14}/></button>
             </div>
-            <div className="p-3 max-h-48 overflow-y-auto bg-slate-900 text-xs text-slate-300 whitespace-pre-wrap leading-relaxed">
+            <div className="p-3 max-h-48 overflow-y-auto bg-neutral-900 text-xs text-neutral-300 whitespace-pre-wrap leading-relaxed">
                 {aiResponse || "Ask a question about the current topic."}
             </div>
-            <div className="p-2 border-t border-slate-800 flex gap-2">
-                <input value={aiQuestion} onChange={e=>setAiQuestion(e.target.value)} placeholder="Ask..." className="flex-1 bg-slate-950 border border-slate-700 rounded px-2 py-1 text-xs text-white focus:border-purple-500 outline-none" onKeyDown={e=>e.key==='Enter'&&!isAiThinking && (async()=>{setIsAiThinking(true);setAiResponse(await getAiAssistance("Context: Live Class",aiQuestion));setIsAiThinking(false)})()}/>
-                <button onClick={async()=>{setIsAiThinking(true);setAiResponse(await getAiAssistance("Context: Live Class",aiQuestion));setIsAiThinking(false)}} disabled={isAiThinking} className="bg-purple-600 text-white px-3 rounded text-xs hover:bg-purple-500 font-medium">Ask</button>
+            <div className="p-2 border-t border-neutral-800 flex gap-2">
+                <input value={aiQuestion} onChange={e=>setAiQuestion(e.target.value)} placeholder="Ask..." className="flex-1 bg-neutral-950 border border-neutral-700 px-2 py-1 text-xs text-white focus:border-purple-500 outline-none" onKeyDown={e=>e.key==='Enter'&&!isAiThinking && (async()=>{setIsAiThinking(true);setAiResponse(await getAiAssistance("Context: Live Class",aiQuestion));setIsAiThinking(false)})()}/>
+                <button onClick={async()=>{setIsAiThinking(true);setAiResponse(await getAiAssistance("Context: Live Class",aiQuestion));setIsAiThinking(false)}} disabled={isAiThinking} className="bg-purple-600 text-white px-3 text-xs hover:bg-purple-500 font-medium">Ask</button>
             </div>
         </div>
       )}

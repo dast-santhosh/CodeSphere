@@ -27,22 +27,22 @@ const Dashboard: React.FC<DashboardProps> = ({ lessons, scheduledClasses = [], o
   }, []);
 
   return (
-    <div className="h-full overflow-y-auto bg-slate-950">
+    <div className="h-full overflow-y-auto bg-neutral-950">
       <div className="p-8 max-w-7xl mx-auto pb-20">
         <header className="mb-10">
             <h1 className="text-3xl font-bold text-white mb-2">Dashboard</h1>
-            <p className="text-slate-400">Track your progress and access your curriculum.</p>
+            <p className="text-neutral-400">Track your progress and access your curriculum.</p>
         </header>
 
         {isLive && (
-            <div className="mb-8 bg-red-900/10 border border-red-900/30 rounded-lg p-6 flex items-center justify-between">
+            <div className="mb-8 bg-red-900/10 border border-red-900/30 p-6 flex items-center justify-between">
                 <div className="flex items-center">
-                    <div className="w-10 h-10 bg-red-600 rounded-full flex items-center justify-center text-white mr-4">
+                    <div className="w-10 h-10 bg-red-600 flex items-center justify-center text-white mr-4">
                         <Radio size={20} />
                     </div>
                     <div>
                         <h2 className="text-lg font-bold text-white">Live Class in Session</h2>
-                        <p className="text-slate-400 text-sm">Join the instructor now.</p>
+                        <p className="text-neutral-400 text-sm">Join the instructor now.</p>
                     </div>
                 </div>
                 <button 
@@ -50,7 +50,7 @@ const Dashboard: React.FC<DashboardProps> = ({ lessons, scheduledClasses = [], o
                         const sidebarLiveBtn = document.querySelector('button[title="Live Class"]') as HTMLButtonElement;
                         if (sidebarLiveBtn) sidebarLiveBtn.click();
                     }}
-                    className="bg-red-600 hover:bg-red-700 text-white px-6 py-2 rounded-lg font-medium transition-colors text-sm"
+                    className="bg-red-600 hover:bg-red-700 text-white px-6 py-2 font-medium transition-colors text-sm"
                 >
                     Join Class
                 </button>
@@ -59,16 +59,16 @@ const Dashboard: React.FC<DashboardProps> = ({ lessons, scheduledClasses = [], o
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
             {[
-                { label: 'Modules Completed', value: `${completedCount}/${lessons.length}`, icon: BookOpen, color: 'text-blue-400', bg: 'bg-blue-900/20' },
-                { label: 'Hours Spent', value: `${hoursSpent}h`, icon: Clock, color: 'text-purple-400', bg: 'bg-purple-900/20' },
-                { label: 'Current Streak', value: streak, icon: Award, color: 'text-yellow-400', bg: 'bg-yellow-900/20' }
+                { label: 'Modules Completed', value: `${completedCount}/${lessons.length}`, icon: BookOpen, color: 'text-blue-400', bg: 'bg-blue-900/10' },
+                { label: 'Hours Spent', value: `${hoursSpent}h`, icon: Clock, color: 'text-purple-400', bg: 'bg-purple-900/10' },
+                { label: 'Current Streak', value: streak, icon: Award, color: 'text-yellow-400', bg: 'bg-yellow-900/10' }
             ].map((stat, i) => (
-                <div key={i} className="bg-slate-900 p-6 rounded-xl border border-slate-800 flex items-center">
-                    <div className={`p-3 rounded-lg ${stat.bg} ${stat.color} mr-4`}>
+                <div key={i} className="bg-neutral-900 p-6 border border-neutral-800 flex items-center">
+                    <div className={`p-3 ${stat.bg} ${stat.color} mr-4`}>
                         <stat.icon size={24} />
                     </div>
                     <div>
-                        <p className="text-slate-500 text-sm font-medium">{stat.label}</p>
+                        <p className="text-neutral-500 text-sm font-medium">{stat.label}</p>
                         <p className="text-2xl font-bold text-white">{stat.value}</p>
                     </div>
                 </div>
@@ -80,15 +80,15 @@ const Dashboard: React.FC<DashboardProps> = ({ lessons, scheduledClasses = [], o
                 <h2 className="text-xl font-bold text-white mb-4">Upcoming Live Classes</h2>
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                     {scheduledClasses.map(cls => (
-                        <div key={cls.id} className="bg-slate-900 border border-slate-800 p-5 rounded-xl flex items-center justify-between">
+                        <div key={cls.id} className="bg-neutral-900 border border-neutral-800 p-5 flex items-center justify-between">
                             <div className="flex items-center">
-                                <div className="p-3 bg-slate-800 rounded-lg mr-4 text-center min-w-[60px] border border-slate-700">
-                                    <div className="text-xs text-slate-400 font-bold uppercase">{new Date(cls.date).toLocaleString('default', { month: 'short' })}</div>
+                                <div className="p-3 bg-neutral-800 mr-4 text-center min-w-[60px] border border-neutral-700">
+                                    <div className="text-xs text-neutral-400 font-bold uppercase">{new Date(cls.date).toLocaleString('default', { month: 'short' })}</div>
                                     <div className="text-xl font-bold text-white">{new Date(cls.date).getDate()}</div>
                                 </div>
                                 <div>
                                     <h3 className="font-semibold text-white">{cls.title}</h3>
-                                    <div className="flex items-center text-xs text-slate-400 mt-1">
+                                    <div className="flex items-center text-xs text-neutral-400 mt-1">
                                         <Clock size={12} className="mr-1" />
                                         {new Date(cls.date).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
                                         <span className="mx-2">•</span>
@@ -107,11 +107,11 @@ const Dashboard: React.FC<DashboardProps> = ({ lessons, scheduledClasses = [], o
             {lessons.map((lesson) => {
                 const isCompleted = completedLessonIds.includes(lesson.id);
                 return (
-                    <div key={lesson.id} className="bg-slate-900 rounded-xl border border-slate-800 p-6 hover:border-slate-700 transition-colors">
+                    <div key={lesson.id} className="bg-neutral-900 border border-neutral-800 p-6 hover:border-neutral-700 transition-colors">
                         <div className="flex justify-between items-start mb-4">
                             <div>
                                 <div className="flex items-center gap-2 mb-2">
-                                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded border uppercase ${
+                                    <span className={`text-[10px] font-bold px-2 py-0.5 border uppercase ${
                                         lesson.difficulty === 'Beginner' ? 'text-green-400 border-green-900/30 bg-green-900/10' : 
                                         lesson.difficulty === 'Intermediate' ? 'text-orange-400 border-orange-900/30 bg-orange-900/10' : 
                                         'text-red-400 border-red-900/30 bg-red-900/10'
@@ -126,16 +126,16 @@ const Dashboard: React.FC<DashboardProps> = ({ lessons, scheduledClasses = [], o
                                 </div>
                                 <h3 className="text-lg font-bold text-white">{lesson.title}</h3>
                             </div>
-                            <div className={`w-8 h-8 rounded-full flex items-center justify-center ${isCompleted ? 'bg-green-900/20 text-green-500' : 'bg-slate-800 text-slate-500'}`}>
+                            <div className={`w-8 h-8 flex items-center justify-center ${isCompleted ? 'bg-green-900/20 text-green-500' : 'bg-neutral-800 text-neutral-500'}`}>
                                 {isCompleted ? <CheckCircle2 size={16} /> : <PlayCircle size={16} />}
                             </div>
                         </div>
-                        <p className="text-slate-400 mb-6 text-sm line-clamp-2">{lesson.description}</p>
+                        <p className="text-neutral-400 mb-6 text-sm line-clamp-2">{lesson.description}</p>
                         <button 
                             onClick={() => onStartLesson(lesson)}
-                            className={`w-full py-2.5 text-sm font-medium rounded-lg transition-colors
+                            className={`w-full py-2.5 text-sm font-medium transition-colors
                                 ${isCompleted 
-                                    ? 'bg-slate-800 text-slate-300 hover:bg-slate-700' 
+                                    ? 'bg-neutral-800 text-neutral-300 hover:bg-neutral-700' 
                                     : 'bg-blue-600 hover:bg-blue-500 text-white'}`}
                         >
                             {isCompleted ? 'Review Module' : 'Start Module'}

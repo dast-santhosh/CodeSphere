@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Save, Plus, Trash2, CheckSquare, Code, FileText, ArrowLeft } from 'lucide-react';
 import { Lesson, Difficulty, QuizQuestion } from '../types';
@@ -77,10 +78,10 @@ const LessonEditor: React.FC<LessonEditorProps> = ({ onSave, onCancel, initialDa
   };
 
   return (
-    <div className="h-full flex flex-col bg-slate-950 overflow-hidden">
-      <div className="h-16 border-b border-slate-800 flex items-center justify-between px-6 bg-slate-900">
+    <div className="h-full flex flex-col bg-neutral-950 overflow-hidden">
+      <div className="h-16 border-b border-neutral-800 flex items-center justify-between px-6 bg-neutral-900">
         <div className="flex items-center">
-            <button onClick={onCancel} className="mr-4 p-2 hover:bg-slate-800 rounded-full text-slate-400">
+            <button onClick={onCancel} className="mr-4 p-2 hover:bg-neutral-800 text-neutral-400">
                 <ArrowLeft size={20} />
             </button>
             <h2 className="text-lg font-bold text-white">
@@ -90,7 +91,7 @@ const LessonEditor: React.FC<LessonEditorProps> = ({ onSave, onCancel, initialDa
         <button 
             onClick={handleSaveToDb}
             disabled={isSaving}
-            className="flex items-center px-4 py-2 bg-primary-600 hover:bg-primary-500 disabled:bg-slate-700 text-white rounded-lg font-medium transition-colors"
+            className="flex items-center px-4 py-2 bg-primary-600 hover:bg-primary-500 disabled:bg-neutral-700 text-white font-medium transition-colors"
         >
             {isSaving ? (
                 <div className="w-4 h-4 border-2 border-white/50 border-t-white rounded-full animate-spin mr-2"></div>
@@ -102,8 +103,7 @@ const LessonEditor: React.FC<LessonEditorProps> = ({ onSave, onCancel, initialDa
       </div>
 
       <div className="flex-1 overflow-y-auto p-8 max-w-5xl mx-auto w-full space-y-8">
-        {/* Basic Info */}
-        <div className="bg-slate-900 p-6 rounded-xl border border-slate-800 space-y-4">
+        <div className="bg-neutral-900 p-6 border border-neutral-800 space-y-4">
             <h3 className="text-lg font-semibold text-white flex items-center mb-4">
                 <FileText size={20} className="mr-2 text-primary-500" />
                 Lesson Details
@@ -111,20 +111,20 @@ const LessonEditor: React.FC<LessonEditorProps> = ({ onSave, onCancel, initialDa
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                    <label className="block text-sm font-medium text-slate-400 mb-1">Title</label>
+                    <label className="block text-sm font-medium text-neutral-400 mb-1">Title</label>
                     <input 
                         type="text" 
                         value={formData.title}
                         onChange={e => setFormData({...formData, title: e.target.value})}
-                        className="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-2 text-white focus:border-primary-500 outline-none"
+                        className="w-full bg-neutral-950 border border-neutral-700 px-4 py-2 text-white focus:border-primary-500 outline-none"
                     />
                 </div>
                 <div>
-                    <label className="block text-sm font-medium text-slate-400 mb-1">Difficulty</label>
+                    <label className="block text-sm font-medium text-neutral-400 mb-1">Difficulty</label>
                     <select 
                         value={formData.difficulty}
                         onChange={e => setFormData({...formData, difficulty: e.target.value as Difficulty})}
-                        className="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-2 text-white focus:border-primary-500 outline-none"
+                        className="w-full bg-neutral-950 border border-neutral-700 px-4 py-2 text-white focus:border-primary-500 outline-none"
                     >
                         <option value={Difficulty.Beginner}>Beginner</option>
                         <option value={Difficulty.Intermediate}>Intermediate</option>
@@ -134,19 +134,19 @@ const LessonEditor: React.FC<LessonEditorProps> = ({ onSave, onCancel, initialDa
             </div>
 
             <div>
-                <label className="block text-sm font-medium text-slate-400 mb-1">Description</label>
+                <label className="block text-sm font-medium text-neutral-400 mb-1">Description</label>
                 <textarea 
                     value={formData.description}
                     onChange={e => setFormData({...formData, description: e.target.value})}
-                    className="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-2 text-white focus:border-primary-500 outline-none h-20 resize-none"
+                    className="w-full bg-neutral-950 border border-neutral-700 px-4 py-2 text-white focus:border-primary-500 outline-none h-20 resize-none"
                 />
             </div>
 
              <div>
-                <label className="block text-sm font-medium text-slate-400 mb-1">Topics</label>
+                <label className="block text-sm font-medium text-neutral-400 mb-1">Topics</label>
                 <div className="flex gap-2 mb-2 flex-wrap">
                     {formData.topics.map((t, idx) => (
-                        <span key={idx} className="bg-slate-800 text-xs px-2 py-1 rounded border border-slate-700 flex items-center text-slate-300">
+                        <span key={idx} className="bg-neutral-800 text-xs px-2 py-1 border border-neutral-700 flex items-center text-neutral-300">
                             {t}
                             <button onClick={() => removeTopic(idx)} className="ml-2 hover:text-red-400"><Trash2 size={12} /></button>
                         </span>
@@ -158,52 +158,50 @@ const LessonEditor: React.FC<LessonEditorProps> = ({ onSave, onCancel, initialDa
                         value={topicInput}
                         onChange={e => setTopicInput(e.target.value)}
                         placeholder="Add a topic (e.g., loops)"
-                        className="flex-1 bg-slate-950 border border-slate-700 rounded-lg px-4 py-2 text-white text-sm focus:border-primary-500 outline-none"
+                        className="flex-1 bg-neutral-950 border border-neutral-700 px-4 py-2 text-white text-sm focus:border-primary-500 outline-none"
                         onKeyDown={e => e.key === 'Enter' && handleAddTopic()}
                     />
-                    <button onClick={handleAddTopic} className="bg-slate-800 px-4 py-2 rounded-lg text-white text-sm hover:bg-slate-700">Add</button>
+                    <button onClick={handleAddTopic} className="bg-neutral-800 px-4 py-2 text-white text-sm hover:bg-neutral-700">Add</button>
                 </div>
             </div>
         </div>
 
-        {/* Content & Code */}
-        <div className="bg-slate-900 p-6 rounded-xl border border-slate-800 space-y-4">
+        <div className="bg-neutral-900 p-6 border border-neutral-800 space-y-4">
             <h3 className="text-lg font-semibold text-white flex items-center mb-4">
                 <Code size={20} className="mr-2 text-primary-500" />
                 Content & Code
             </h3>
 
             <div>
-                <label className="block text-sm font-medium text-slate-400 mb-1">Lesson Content (Markdown)</label>
+                <label className="block text-sm font-medium text-neutral-400 mb-1">Lesson Content (Markdown)</label>
                 <textarea 
                     value={formData.content}
                     onChange={e => setFormData({...formData, content: e.target.value})}
-                    className="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-2 text-white focus:border-primary-500 outline-none h-64 font-mono text-sm"
+                    className="w-full bg-neutral-950 border border-neutral-700 px-4 py-2 text-white focus:border-primary-500 outline-none h-64 font-mono text-sm"
                 />
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
-                    <label className="block text-sm font-medium text-slate-400 mb-1">Initial Code for Student</label>
+                    <label className="block text-sm font-medium text-neutral-400 mb-1">Initial Code for Student</label>
                     <textarea 
                         value={formData.initialCode}
                         onChange={e => setFormData({...formData, initialCode: e.target.value})}
-                        className="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-2 text-white focus:border-primary-500 outline-none h-40 font-mono text-sm"
+                        className="w-full bg-neutral-950 border border-neutral-700 px-4 py-2 text-white focus:border-primary-500 outline-none h-40 font-mono text-sm"
                     />
                 </div>
                 <div>
-                    <label className="block text-sm font-medium text-slate-400 mb-1">Task Description (for Auto-Grader)</label>
+                    <label className="block text-sm font-medium text-neutral-400 mb-1">Task Description (for Auto-Grader)</label>
                     <textarea 
                         value={formData.task}
                         onChange={e => setFormData({...formData, task: e.target.value})}
-                        className="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-2 text-white focus:border-primary-500 outline-none h-40 text-sm"
+                        className="w-full bg-neutral-950 border border-neutral-700 px-4 py-2 text-white focus:border-primary-500 outline-none h-40 text-sm"
                     />
                 </div>
             </div>
         </div>
 
-        {/* Quiz Builder */}
-        <div className="bg-slate-900 p-6 rounded-xl border border-slate-800 space-y-4">
+        <div className="bg-neutral-900 p-6 border border-neutral-800 space-y-4">
              <div className="flex justify-between items-center mb-4">
                 <h3 className="text-lg font-semibold text-white flex items-center">
                     <CheckSquare size={20} className="mr-2 text-primary-500" />
@@ -211,32 +209,32 @@ const LessonEditor: React.FC<LessonEditorProps> = ({ onSave, onCancel, initialDa
                 </h3>
                 <button 
                     onClick={addQuizQuestion}
-                    className="text-xs bg-slate-800 hover:bg-slate-700 text-white px-3 py-1.5 rounded-lg flex items-center transition-colors"
+                    className="text-xs bg-neutral-800 hover:bg-neutral-700 text-white px-3 py-1.5 flex items-center transition-colors"
                 >
                     <Plus size={14} className="mr-1" /> Add Question
                 </button>
             </div>
 
             {(formData.quiz || []).map((q, qIdx) => (
-                <div key={q.id} className="bg-slate-950 border border-slate-800 p-4 rounded-lg relative">
+                <div key={q.id} className="bg-neutral-950 border border-neutral-800 p-4 relative">
                     <button 
                         onClick={() => {
                             const newQuiz = [...(formData.quiz || [])];
                             newQuiz.splice(qIdx, 1);
                             setFormData({...formData, quiz: newQuiz});
                         }}
-                        className="absolute top-2 right-2 text-slate-600 hover:text-red-500"
+                        className="absolute top-2 right-2 text-neutral-600 hover:text-red-500"
                     >
                         <Trash2 size={16} />
                     </button>
                     
                     <div className="mb-3">
-                        <label className="text-xs text-slate-500 uppercase font-bold">Question {qIdx + 1}</label>
+                        <label className="text-xs text-neutral-500 uppercase font-bold">Question {qIdx + 1}</label>
                         <input 
                             type="text" 
                             value={q.question}
                             onChange={e => updateQuizQuestion(qIdx, 'question', e.target.value)}
-                            className="w-full bg-slate-900 border-b border-slate-700 px-0 py-2 text-white focus:border-primary-500 outline-none"
+                            className="w-full bg-neutral-900 border-b border-neutral-700 px-0 py-2 text-white focus:border-primary-500 outline-none"
                             placeholder="Enter question here..."
                         />
                     </div>
@@ -255,7 +253,7 @@ const LessonEditor: React.FC<LessonEditorProps> = ({ onSave, onCancel, initialDa
                                     type="text"
                                     value={opt}
                                     onChange={e => updateQuizOption(qIdx, oIdx, e.target.value)}
-                                    className="flex-1 bg-slate-900 border border-slate-800 rounded px-3 py-1.5 text-sm text-slate-300 focus:border-primary-500 outline-none"
+                                    className="flex-1 bg-neutral-900 border border-neutral-800 px-3 py-1.5 text-sm text-neutral-300 focus:border-primary-500 outline-none"
                                     placeholder={`Option ${oIdx + 1}`}
                                 />
                             </div>

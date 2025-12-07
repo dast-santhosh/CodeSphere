@@ -22,17 +22,12 @@ const LessonView: React.FC<LessonViewProps> = ({ lesson, onBack, onComplete }) =
   const [userQuestion, setUserQuestion] = useState('');
   const [aiAnswer, setAiAnswer] = useState('');
   const [isAiThinking, setIsAiThinking] = useState(false);
-  
-  // Tab State
   const [activeTab, setActiveTab] = useState<'learn' | 'quiz'>('learn');
-  
-  // Quiz State
   const [quizAnswers, setQuizAnswers] = useState<{[key: string]: number}>({});
   const [quizSubmitted, setQuizSubmitted] = useState(false);
   const [quizScore, setQuizScore] = useState(0);
 
   useEffect(() => {
-    // Reset all state when lesson changes
     setOutput('');
     setError('');
     setIsRunning(false);
@@ -104,7 +99,6 @@ const LessonView: React.FC<LessonViewProps> = ({ lesson, onBack, onComplete }) =
       setQuizScore(correctCount);
       setQuizSubmitted(true);
       
-      // Mark as complete if score is > 70% or if all correct for small quizzes
       const percentage = (correctCount / lesson.quiz.length) * 100;
       if (percentage >= 70 || (lesson.quiz.length < 3 && correctCount === lesson.quiz.length)) {
           triggerCelebration();
@@ -115,24 +109,24 @@ const LessonView: React.FC<LessonViewProps> = ({ lesson, onBack, onComplete }) =
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
-      <header className="flex-none h-16 border-b border-slate-800 bg-slate-900 flex items-center px-6 justify-between">
+      <header className="flex-none h-16 border-b border-neutral-800 bg-neutral-900 flex items-center px-6 justify-between">
         <div className="flex items-center">
             <button 
             onClick={onBack}
-            className="mr-4 p-2 rounded-full hover:bg-slate-800 text-slate-400 hover:text-white transition-colors"
+            className="mr-4 p-2 hover:bg-neutral-800 text-neutral-400 hover:text-white transition-colors"
             >
             <ArrowLeft size={20} />
             </button>
             <div>
                 <h2 className="font-bold text-white">{lesson.title}</h2>
-                <div className="flex items-center text-xs text-slate-500">
+                <div className="flex items-center text-xs text-neutral-500">
                     <span className="mr-2">{lesson.difficulty}</span>
                 </div>
             </div>
         </div>
         <button 
             onClick={() => setShowAiHelp(!showAiHelp)}
-            className="flex items-center px-3 py-1.5 bg-primary-500/10 text-primary-400 rounded-lg hover:bg-primary-500/20 text-sm font-medium transition-colors border border-primary-500/20"
+            className="flex items-center px-3 py-1.5 bg-primary-500/10 text-primary-400 hover:bg-primary-500/20 text-sm font-medium transition-colors border border-primary-500/20"
         >
             <HelpCircle size={16} className="mr-2" />
             AI Tutor
@@ -142,14 +136,14 @@ const LessonView: React.FC<LessonViewProps> = ({ lesson, onBack, onComplete }) =
       {/* Main Split View */}
       <div className="flex-1 flex overflow-hidden">
         {/* Left: Content & Quiz */}
-        <div className="w-1/2 lg:w-5/12 flex flex-col border-r border-slate-800 bg-slate-950">
+        <div className="w-1/2 lg:w-5/12 flex flex-col border-r border-neutral-800 bg-neutral-950">
           
           {/* Tabs */}
-          <div className="flex border-b border-slate-800 bg-slate-900/50">
+          <div className="flex border-b border-neutral-800 bg-neutral-900/50">
             <button 
                 onClick={() => setActiveTab('learn')}
                 className={`flex-1 py-3 text-sm font-medium border-b-2 transition-all flex items-center justify-center
-                ${activeTab === 'learn' ? 'border-primary-500 text-white bg-slate-800/50' : 'border-transparent text-slate-400 hover:text-white hover:bg-slate-800/30'}`}
+                ${activeTab === 'learn' ? 'border-primary-500 text-white bg-neutral-800/50' : 'border-transparent text-neutral-400 hover:text-white hover:bg-neutral-800/30'}`}
             >
                 <BookOpen size={16} className="mr-2" />
                 Lesson
@@ -157,7 +151,7 @@ const LessonView: React.FC<LessonViewProps> = ({ lesson, onBack, onComplete }) =
             <button 
                 onClick={() => setActiveTab('quiz')}
                 className={`flex-1 py-3 text-sm font-medium border-b-2 transition-all flex items-center justify-center
-                ${activeTab === 'quiz' ? 'border-primary-500 text-white bg-slate-800/50' : 'border-transparent text-slate-400 hover:text-white hover:bg-slate-800/30'}`}
+                ${activeTab === 'quiz' ? 'border-primary-500 text-white bg-neutral-800/50' : 'border-transparent text-neutral-400 hover:text-white hover:bg-neutral-800/30'}`}
             >
                 <CheckSquare size={16} className="mr-2" />
                 Quiz
@@ -167,30 +161,29 @@ const LessonView: React.FC<LessonViewProps> = ({ lesson, onBack, onComplete }) =
           <div className="flex-1 overflow-y-auto p-8">
             {activeTab === 'learn' ? (
                 <>
-                    <div className="prose prose-invert prose-slate max-w-none">
-                        {/* Simple Markdown Rendering Replacement */}
+                    <div className="prose prose-invert prose-neutral max-w-none">
                         {lesson.content.split('\n').map((line, idx) => {
                             if (line.startsWith('# ')) return <h1 key={idx} className="text-3xl font-bold text-white mb-6">{line.replace('# ', '')}</h1>
                             if (line.startsWith('### ')) return <h3 key={idx} className="text-xl font-semibold text-primary-400 mt-8 mb-4">{line.replace('### ', '')}</h3>
                             if (line.startsWith('```')) return null; 
                             if (line.trim().startsWith('print') || line.trim().startsWith('x =') || line.trim().startsWith('def ') || line.trim().startsWith('a =')) {
-                                return <pre key={idx} className="bg-slate-900 p-4 rounded-lg border border-slate-800 text-sm font-mono text-slate-300 my-4 overflow-x-auto">{line}</pre>
+                                return <pre key={idx} className="bg-neutral-900 p-4 border border-neutral-800 text-sm font-mono text-neutral-300 my-4 overflow-x-auto">{line}</pre>
                             }
-                            if (line.startsWith('* ')) return <li key={idx} className="ml-4 list-disc text-slate-300 mb-1">{line.replace('* ', '')}</li>
-                            return <p key={idx} className="text-slate-300 mb-4 leading-relaxed">{line}</p>
+                            if (line.startsWith('* ')) return <li key={idx} className="ml-4 list-disc text-neutral-300 mb-1">{line.replace('* ', '')}</li>
+                            return <p key={idx} className="text-neutral-300 mb-4 leading-relaxed">{line}</p>
                         })}
                     </div>
 
-                    <div className="mt-10 p-6 bg-slate-900 rounded-xl border border-slate-800 shadow-lg">
+                    <div className="mt-10 p-6 bg-neutral-900 border border-neutral-800 shadow-lg">
                         <h4 className="font-bold text-white mb-2 flex items-center">
                             <CheckCircle size={18} className="text-primary-500 mr-2" />
                             Your Task
                         </h4>
-                        <p className="text-slate-300 text-sm">{lesson.task}</p>
+                        <p className="text-neutral-300 text-sm">{lesson.task}</p>
                     </div>
                     
                     {aiFeedback && (
-                        <div className={`mt-6 p-4 rounded-xl border ${isCorrect ? 'bg-green-500/10 border-green-500/30' : 'bg-orange-500/10 border-orange-500/30'}`}>
+                        <div className={`mt-6 p-4 border ${isCorrect ? 'bg-green-500/10 border-green-500/30' : 'bg-orange-500/10 border-orange-500/30'}`}>
                             <p className="text-sm font-medium mb-1 text-white">AI Feedback:</p>
                             <p className={`text-sm ${isCorrect ? 'text-green-400' : 'text-orange-400'}`}>{aiFeedback}</p>
                             {isCorrect && (
@@ -204,14 +197,14 @@ const LessonView: React.FC<LessonViewProps> = ({ lesson, onBack, onComplete }) =
             ) : (
                 <div className="space-y-8">
                     {!lesson.quiz || lesson.quiz.length === 0 ? (
-                        <div className="text-center text-slate-500 mt-10">
+                        <div className="text-center text-neutral-500 mt-10">
                             <CheckSquare size={48} className="mx-auto mb-4 opacity-50" />
                             <p>No quiz available for this lesson.</p>
                         </div>
                     ) : (
                         <>
                             {lesson.quiz.map((q, qIdx) => (
-                                <div key={q.id} className="bg-slate-900/50 p-6 rounded-xl border border-slate-800">
+                                <div key={q.id} className="bg-neutral-900/50 p-6 border border-neutral-800">
                                     <h3 className="text-white font-medium mb-4 flex items-start">
                                         <span className="text-primary-500 mr-2">{qIdx + 1}.</span>
                                         {q.question}
@@ -221,11 +214,11 @@ const LessonView: React.FC<LessonViewProps> = ({ lesson, onBack, onComplete }) =
                                             const isSelected = quizAnswers[q.id] === optIdx;
                                             const isCorrectAnswer = q.correctAnswer === optIdx;
                                             
-                                            let btnClass = "border-slate-700 hover:bg-slate-800 text-slate-300";
+                                            let btnClass = "border-neutral-700 hover:bg-neutral-800 text-neutral-300";
                                             if (quizSubmitted) {
                                                 if (isCorrectAnswer) btnClass = "bg-green-500/20 border-green-500/50 text-green-400";
                                                 else if (isSelected && !isCorrectAnswer) btnClass = "bg-red-500/20 border-red-500/50 text-red-400";
-                                                else btnClass = "border-slate-800 opacity-50";
+                                                else btnClass = "border-neutral-800 opacity-50";
                                             } else {
                                                 if (isSelected) btnClass = "bg-primary-500/20 border-primary-500 text-primary-400";
                                             }
@@ -235,7 +228,7 @@ const LessonView: React.FC<LessonViewProps> = ({ lesson, onBack, onComplete }) =
                                                     key={optIdx}
                                                     disabled={quizSubmitted}
                                                     onClick={() => handleQuizSelect(q.id, optIdx)}
-                                                    className={`w-full text-left px-4 py-3 rounded-lg border text-sm transition-all flex justify-between items-center ${btnClass}`}
+                                                    className={`w-full text-left px-4 py-3 border text-sm transition-all flex justify-between items-center ${btnClass}`}
                                                 >
                                                     {opt}
                                                     {quizSubmitted && isCorrectAnswer && <CheckCircle size={16} className="text-green-500" />}
@@ -251,13 +244,13 @@ const LessonView: React.FC<LessonViewProps> = ({ lesson, onBack, onComplete }) =
                                 <button 
                                     onClick={submitQuiz}
                                     disabled={Object.keys(quizAnswers).length !== lesson.quiz.length}
-                                    className="w-full py-3 bg-primary-600 hover:bg-primary-500 disabled:bg-slate-800 disabled:text-slate-500 text-white rounded-xl font-bold transition-all"
+                                    className="w-full py-3 bg-primary-600 hover:bg-primary-500 disabled:bg-neutral-800 disabled:text-neutral-500 text-white font-bold transition-all"
                                 >
                                     Submit Quiz
                                 </button>
                             ) : (
-                                <div className="p-4 bg-slate-800 rounded-xl text-center border border-slate-700">
-                                    <p className="text-slate-400 mb-1">You scored</p>
+                                <div className="p-4 bg-neutral-800 text-center border border-neutral-700">
+                                    <p className="text-neutral-400 mb-1">You scored</p>
                                     <p className="text-2xl font-bold text-white mb-2">{quizScore} / {lesson.quiz.length}</p>
                                     <div className="flex justify-center gap-4">
                                         <button 
@@ -286,7 +279,7 @@ const LessonView: React.FC<LessonViewProps> = ({ lesson, onBack, onComplete }) =
         </div>
 
         {/* Right: Code Editor */}
-        <div className="w-1/2 lg:w-7/12 bg-slate-950 p-4 flex flex-col relative">
+        <div className="w-1/2 lg:w-7/12 bg-neutral-950 p-4 flex flex-col relative">
            <CodeEditor 
             initialCode={lesson.initialCode} 
             onRun={handleRunCode}
@@ -298,34 +291,34 @@ const LessonView: React.FC<LessonViewProps> = ({ lesson, onBack, onComplete }) =
            
            {/* AI Tutor Overlay */}
            {showAiHelp && (
-               <div className="absolute right-6 top-6 w-80 bg-slate-900 border border-slate-700 shadow-2xl rounded-xl flex flex-col overflow-hidden z-20">
-                   <div className="p-3 bg-slate-800 border-b border-slate-700 flex justify-between items-center">
+               <div className="absolute right-6 top-6 w-80 bg-neutral-900 border border-neutral-700 shadow-2xl flex flex-col overflow-hidden z-20">
+                   <div className="p-3 bg-neutral-800 border-b border-neutral-700 flex justify-between items-center">
                        <span className="text-sm font-bold text-white">Codesphere Tutor</span>
-                       <button onClick={() => setShowAiHelp(false)} className="text-slate-500 hover:text-white">&times;</button>
+                       <button onClick={() => setShowAiHelp(false)} className="text-neutral-500 hover:text-white">&times;</button>
                    </div>
                    <div className="p-4 flex-1 max-h-60 overflow-y-auto">
                        {aiAnswer ? (
-                           <div className="bg-primary-500/10 p-3 rounded-lg text-sm text-slate-200">
+                           <div className="bg-primary-500/10 p-3 text-sm text-neutral-200">
                                {aiAnswer}
                            </div>
                        ) : (
-                           <p className="text-xs text-slate-500 text-center">Ask me anything about this lesson!</p>
+                           <p className="text-xs text-neutral-500 text-center">Ask me anything about this lesson!</p>
                        )}
                    </div>
-                   <div className="p-3 border-t border-slate-700 bg-slate-900">
+                   <div className="p-3 border-t border-neutral-700 bg-neutral-900">
                        <div className="flex">
                            <input 
                             type="text" 
                             value={userQuestion}
                             onChange={(e) => setUserQuestion(e.target.value)}
                             placeholder="Ask a question..."
-                            className="flex-1 bg-slate-950 border border-slate-700 rounded-l-lg px-3 py-1.5 text-sm text-white focus:outline-none focus:border-primary-500"
+                            className="flex-1 bg-neutral-950 border border-neutral-700 px-3 py-1.5 text-sm text-white focus:outline-none focus:border-primary-500"
                             onKeyDown={(e) => e.key === 'Enter' && handleAskAi()}
                            />
                            <button 
                             onClick={handleAskAi}
                             disabled={isAiThinking}
-                            className="bg-primary-600 px-3 py-1.5 rounded-r-lg text-white hover:bg-primary-500 disabled:opacity-50"
+                            className="bg-primary-600 px-3 py-1.5 text-white hover:bg-primary-500 disabled:opacity-50"
                            >
                                {isAiThinking ? '...' : 'Ask'}
                            </button>
