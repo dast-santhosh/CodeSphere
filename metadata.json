@@ -1,0 +1,8 @@
+{
+  "name": "CODESPHERE",
+  "description": "An all-in-one platform built to teach Python programming through structured lessons, interactive coding, auto-assessment, and real-time live classes.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ]
+}
