@@ -1,7 +1,7 @@
+
 import React, { useEffect, useRef, useState } from 'react';
 import { Mic, MicOff, Video, VideoOff, PhoneOff, MessageSquare, Users, ScreenShare, Shield } from 'lucide-react';
 import { ChatMessage, Role } from '../types';
-import { MOCK_CHAT_MESSAGES } from '../constants';
 
 interface LiveClassroomProps {
     role?: Role;
@@ -13,7 +13,7 @@ const LiveClassroom: React.FC<LiveClassroomProps> = ({ role = 'student', onLeave
   const [isMicOn, setIsMicOn] = useState(true);
   const [isVideoOn, setIsVideoOn] = useState(true);
   const [hasPermission, setHasPermission] = useState(false);
-  const [chatMessages, setChatMessages] = useState<ChatMessage[]>(MOCK_CHAT_MESSAGES);
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [newMessage, setNewMessage] = useState('');
 
   useEffect(() => {
@@ -71,8 +71,8 @@ const LiveClassroom: React.FC<LiveClassroomProps> = ({ role = 'student', onLeave
         {/* Header */}
         <div className="flex justify-between items-center mb-4 px-2">
             <div>
-                <h2 className="text-xl font-bold text-white">Advanced Python: Asynchronous Programming</h2>
-                <p className="text-sm text-slate-400">Instructor: Dr. Angela Yu • 14 Students Online</p>
+                <h2 className="text-xl font-bold text-white">Live Session: Python Fundamentals</h2>
+                <p className="text-sm text-slate-400">Instructor: Apex Code Labs • Online</p>
             </div>
             <div className="flex items-center gap-3">
                 {role === 'admin' && (
@@ -106,24 +106,17 @@ const LiveClassroom: React.FC<LiveClassroomProps> = ({ role = 'student', onLeave
                      </>
                 ) : (
                     <>
-                        <img src="https://picsum.photos/800/600" alt="Teacher" className="w-full h-full object-cover opacity-90" />
+                         <div className="w-full h-full flex items-center justify-center bg-slate-900 text-slate-500">
+                             <div className="text-center">
+                                 <Users size={64} className="mx-auto mb-4 opacity-50"/>
+                                 <p>Waiting for Instructor video...</p>
+                             </div>
+                         </div>
                         <div className="absolute bottom-4 left-4 bg-black/60 px-3 py-1 rounded-lg backdrop-blur-md">
-                            <span className="text-white font-medium text-sm">Dr. Angela Yu (Host)</span>
+                            <span className="text-white font-medium text-sm">Main Stage</span>
                         </div>
                     </>
                 )}
-            </div>
-
-            {/* Student 1 */}
-            <div className="bg-slate-900 rounded-xl relative overflow-hidden border border-slate-800">
-                 <img src="https://picsum.photos/400/300?random=1" alt="Student" className="w-full h-full object-cover" />
-                 <div className="absolute bottom-2 left-2 bg-black/50 px-2 py-0.5 rounded text-xs text-white">Sarah</div>
-            </div>
-
-             {/* Student 2 */}
-             <div className="bg-slate-900 rounded-xl relative overflow-hidden border border-slate-800">
-                 <img src="https://picsum.photos/400/300?random=2" alt="Student" className="w-full h-full object-cover" />
-                 <div className="absolute bottom-2 left-2 bg-black/50 px-2 py-0.5 rounded text-xs text-white">Mike</div>
             </div>
 
             {/* User Self View (If Student) */}
@@ -190,14 +183,20 @@ const LiveClassroom: React.FC<LiveClassroomProps> = ({ role = 'student', onLeave
           </div>
           
           <div className="flex-1 overflow-y-auto p-4 space-y-4">
-              {chatMessages.map(msg => (
+              {chatMessages.length === 0 ? (
+                  <div className="text-center text-slate-500 mt-10 text-sm italic">
+                      No messages yet. Say hello!
+                  </div>
+              ) : (
+                chatMessages.map(msg => (
                   <div key={msg.id} className={`flex flex-col ${msg.sender === 'user' ? 'items-end' : 'items-start'}`}>
                       <span className="text-xs text-slate-500 mb-1">{msg.senderName}</span>
                       <div className={`p-3 rounded-xl max-w-[85%] text-sm ${msg.sender === 'user' ? 'bg-primary-600 text-white' : 'bg-slate-800 text-slate-200'}`}>
                           {msg.text}
                       </div>
                   </div>
-              ))}
+                ))
+              )}
           </div>
 
           <form onSubmit={handleSendMessage} className="p-4 border-t border-slate-800 bg-slate-900">

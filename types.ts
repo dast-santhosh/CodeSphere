@@ -1,3 +1,4 @@
+
 export enum Difficulty {
   Beginner = 'Beginner',
   Intermediate = 'Intermediate',
@@ -5,14 +6,17 @@ export enum Difficulty {
 }
 
 export type Role = 'student' | 'admin';
+export type UserStatus = 'pending' | 'active' | 'rejected';
 
 export interface User {
   id: string;
   name: string;
   email: string;
   role: Role;
+  status: UserStatus;
   avatar?: string;
   completedLessonIds: string[];
+  joinedAt?: any; // Firestore Timestamp or Date
 }
 
 export interface QuizQuestion {

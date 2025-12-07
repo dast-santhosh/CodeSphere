@@ -12,7 +12,10 @@ const firebaseConfig = {
   measurementId: "G-PYW815JT1Y"
 };
 
-// Use namespace import compatibility or singleton pattern to avoid re-initialization
-const app = firebaseApp.getApps().length > 0 ? firebaseApp.getApp() : firebaseApp.initializeApp(firebaseConfig);
+// Workaround for TypeScript errors where named exports are not detected in the environment
+const { initializeApp, getApps, getApp } = firebaseApp as any;
+
+// Singleton pattern for modular SDK to prevent double initialization
+const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 export const db = getFirestore(app);

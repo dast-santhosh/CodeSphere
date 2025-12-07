@@ -1,4 +1,8 @@
+
 import { Lesson, Difficulty, ChatMessage } from './types';
+
+// REPLACE THIS URL WITH YOUR UPLOADED LOGO URL
+export const APP_LOGO = "https://ui-avatars.com/api/?name=Apex+Code+Labs&background=0ea5e9&color=fff&rounded=true&bold=true&size=128";
 
 // Used for seeding the database if empty
 export const INITIAL_CURRICULUM: Lesson[] = [
@@ -140,6 +144,4 @@ def my_function(x):
   }
 ];
 
-export const MOCK_CHAT_MESSAGES: ChatMessage[] = [
-  { id: '1', sender: 'peer', senderName: 'System', text: 'Welcome to the live class!', timestamp: new Date() }
-];
+export const MOCK_CHAT_MESSAGES: ChatMessage[] = [];

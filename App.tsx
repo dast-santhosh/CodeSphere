@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Layout, GraduationCap, Code, Video, LayoutDashboard, User as UserIcon, LogOut, Shield, AlertTriangle } from 'lucide-react';
 import Dashboard from './components/Dashboard';
@@ -8,8 +9,9 @@ import Login from './components/Login';
 import AdminDashboard from './components/AdminDashboard';
 import LessonEditor from './components/LessonEditor';
 import UserProfile from './components/UserProfile';
-import { Lesson, User } from './types';
-import { INITIAL_CURRICULUM } from './constants';
+import WaitingRoom from './components/WaitingRoom';
+import { Lesson, User, UserStatus } from './types';
+import { INITIAL_CURRICULUM, APP_LOGO } from './constants';
 import { auth, db } from './services/firebase';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
 import { collection, onSnapshot, doc, getDoc, writeBatch, updateDoc, arrayUnion, setDoc } from 'firebase/firestore';
@@ -41,7 +43,7 @@ const App: React.FC = () => {
             // Safety Check: Force admin role if UID matches, even if not caught by Login
             if (firebaseUser.uid === ADMIN_UID) {
                 try {
-                     await setDoc(doc(db, "users", firebaseUser.uid), { role: 'admin' }, { merge: true });
+                     await setDoc(doc(db, "users", firebaseUser.uid), { role: 'admin', status: 'active' }, { merge: true });
                 } catch (e) {
                     console.error("Failed to auto-promote admin", e);
                 }
@@ -57,6 +59,7 @@ const App: React.FC = () => {
                         name: data.name || firebaseUser.displayName || 'User',
                         email: data.email || firebaseUser.email || '',
                         role: data.role || 'student',
+                        status: data.status as UserStatus || 'pending',
                         avatar: data.avatar || firebaseUser.photoURL || '',
                         completedLessonIds: data.completedLessonIds || []
                     });
@@ -67,6 +70,7 @@ const App: React.FC = () => {
                         name: firebaseUser.displayName || 'User',
                         email: firebaseUser.email || '',
                         role: 'student',
+                        status: 'pending',
                         avatar: firebaseUser.photoURL || '',
                         completedLessonIds: []
                     });
@@ -184,6 +188,24 @@ const App: React.FC = () => {
         return <Login onLogin={() => {}} />; // Login component handles auth internally and triggers the auth listener
     }
 
+    // CHECK USER STATUS: If pending and not admin, show Waiting Room
+    if (user.status === 'pending' && user.role !== 'admin') {
+        return <WaitingRoom user={user} onLogout={handleLogout} />;
+    }
+
+    if (user.status === 'rejected' && user.role !== 'admin') {
+        return (
+             <div className="flex flex-col h-screen items-center justify-center bg-slate-950 text-center p-8">
+                <AlertTriangle size={64} className="text-red-500 mb-6" />
+                <h1 className="text-3xl font-bold text-white mb-4">Registration Rejected</h1>
+                <p className="text-slate-400 mb-8 max-w-lg">
+                    Your application to join the course was declined by an administrator.
+                </p>
+                <button onClick={handleLogout} className="bg-slate-800 text-white px-6 py-2 rounded-lg">Sign Out</button>
+            </div>
+        );
+    }
+
     if (dbError) {
         return (
             <div className="flex flex-col h-screen items-center justify-center bg-slate-950 text-center p-8">
@@ -210,8 +232,8 @@ const App: React.FC = () => {
         <aside className="w-20 lg:w-64 bg-slate-900 border-r border-slate-800 flex flex-col justify-between transition-all duration-300">
           <div>
             <div className="h-16 flex items-center justify-center lg:justify-start lg:px-6 border-b border-slate-800">
-              <div className="w-10 h-10 bg-primary-600 rounded-xl flex items-center justify-center shadow-lg shadow-primary-500/20">
-                <Code className="text-white" size={24} />
+              <div className="w-10 h-10 rounded-full overflow-hidden flex items-center justify-center shadow-lg shadow-primary-500/20 border-2 border-primary-600/50">
+                 <img src={APP_LOGO} alt="Apex Code Labs" className="w-full h-full object-cover" />
               </div>
               <span className="ml-3 font-bold text-xl text-white hidden lg:block tracking-tight">Apex Code Labs</span>
             </div>

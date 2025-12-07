@@ -1,10 +1,11 @@
 
 import React, { useState } from 'react';
-import { Code, User, ShieldCheck, ArrowRight, AlertTriangle } from 'lucide-react';
-import { User as UserType } from '../types';
+import { User, ShieldCheck, ArrowRight, AlertTriangle } from 'lucide-react';
+import { User as UserType, UserStatus } from '../types';
 import { auth, db } from '../services/firebase';
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword, updateProfile, signOut, GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
-import { doc, setDoc, getDoc, updateDoc } from 'firebase/firestore';
+import { doc, setDoc, getDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
+import { APP_LOGO } from '../constants';
 
 interface LoginProps {
   onLogin: (user: UserType) => void;
@@ -31,6 +32,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
     try {
       let firebaseUser;
       let userRole = role;
+      let userStatus: UserStatus = 'pending';
       let completedLessonIds: string[] = [];
 
       if (isSignUp) {
@@ -44,14 +46,20 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
         // Auto-promote if matches hardcoded Admin UID
         if (firebaseUser.uid === ADMIN_UID) {
             userRole = 'admin';
+            userStatus = 'active'; // Admin is always active
+        } else {
+            // Students are pending by default
+            userStatus = 'pending';
         }
 
         // Save Role to Firestore
         await setDoc(doc(db, "users", firebaseUser.uid), {
           role: userRole,
+          status: userStatus,
           email: email,
           name: name,
-          completedLessonIds: []
+          completedLessonIds: [],
+          joinedAt: serverTimestamp()
         });
 
       } else {
@@ -65,11 +73,15 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
         if (userDoc.exists()) {
           const data = userDoc.data();
           let dbRole = data.role as 'student' | 'admin';
+          let dbStatus = data.status as UserStatus || 'pending';
           
           // FORCE ADMIN PROMOTION FOR SPECIFIC UID
-          if (firebaseUser.uid === ADMIN_UID && dbRole !== 'admin') {
-              await updateDoc(doc(db, "users", firebaseUser.uid), { role: 'admin' });
-              dbRole = 'admin';
+          if (firebaseUser.uid === ADMIN_UID) {
+             if (dbRole !== 'admin' || dbStatus !== 'active') {
+                await updateDoc(doc(db, "users", firebaseUser.uid), { role: 'admin', status: 'active' });
+                dbRole = 'admin';
+                dbStatus = 'active';
+             }
           }
           
           // STRICT ROLE CHECK FOR ADMIN LOGIN
@@ -79,14 +91,18 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
           }
 
           userRole = dbRole;
+          userStatus = dbStatus;
           completedLessonIds = data.completedLessonIds || [];
         } else {
-            // Fallback if no role defined (legacy users)
+            // Fallback for legacy users
             if (firebaseUser.uid === ADMIN_UID) {
                 userRole = 'admin';
-                await setDoc(doc(db, "users", firebaseUser.uid), { role: 'admin' }, { merge: true });
+                userStatus = 'active';
+                await setDoc(doc(db, "users", firebaseUser.uid), { role: 'admin', status: 'active' }, { merge: true });
             } else {
                 userRole = 'student';
+                userStatus = 'pending'; // Treat unknown legacy users as pending? Or active. Let's say pending for safety.
+                await setDoc(doc(db, "users", firebaseUser.uid), { role: 'student', status: 'pending' }, { merge: true });
             }
         }
       }
@@ -96,6 +112,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
         name: firebaseUser.displayName || name || email.split('@')[0],
         email: firebaseUser.email || email,
         role: userRole,
+        status: userStatus,
         avatar: firebaseUser.photoURL || `https://api.dicebear.com/7.x/avataaars/svg?seed=${firebaseUser.uid}`,
         completedLessonIds: completedLessonIds
       };
@@ -123,32 +140,42 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
       const userDoc = await getDoc(userDocRef);
       
       let userRole = role;
+      let userStatus: UserStatus = 'pending';
       let completedLessonIds: string[] = [];
 
       if (!userDoc.exists()) {
           // Check for hardcoded Admin UID on creation
           if (user.uid === ADMIN_UID) {
               userRole = 'admin';
+              userStatus = 'active';
+          } else {
+              userStatus = 'pending';
           }
 
           // Create new user with selected role from the UI state
           await setDoc(userDocRef, {
               role: userRole,
+              status: userStatus,
               email: user.email,
               name: user.displayName || name || '',
               avatar: user.photoURL,
-              completedLessonIds: []
+              completedLessonIds: [],
+              joinedAt: serverTimestamp()
           });
       } else {
           // Check admin privileges if trying to login as admin
           const userData = userDoc.data();
           userRole = userData.role;
+          userStatus = userData.status || 'pending';
           completedLessonIds = userData.completedLessonIds || [];
 
           // FORCE ADMIN PROMOTION FOR SPECIFIC UID
-          if (user.uid === ADMIN_UID && userRole !== 'admin') {
-              await updateDoc(userDocRef, { role: 'admin' });
-              userRole = 'admin';
+          if (user.uid === ADMIN_UID) {
+              if (userRole !== 'admin' || userStatus !== 'active') {
+                   await updateDoc(userDocRef, { role: 'admin', status: 'active' });
+                   userRole = 'admin';
+                   userStatus = 'active';
+              }
           }
 
           if (role === 'admin' && userRole !== 'admin') {
@@ -162,6 +189,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
         name: user.displayName || 'User',
         email: user.email || '',
         role: userRole,
+        status: userStatus,
         avatar: user.photoURL || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.uid}`,
         completedLessonIds: completedLessonIds
       };
@@ -212,8 +240,8 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
 
       <div className="w-full max-w-md bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl p-8 relative z-10">
         <div className="text-center mb-8">
-          <div className="w-16 h-16 bg-gradient-to-br from-primary-500 to-purple-600 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg shadow-primary-500/20">
-            <Code size={32} className="text-white" />
+          <div className="w-20 h-20 bg-gradient-to-br from-primary-500 to-purple-600 rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg shadow-primary-500/20 border-2 border-white/20 overflow-hidden">
+             <img src={APP_LOGO} alt="Logo" className="w-full h-full object-cover" />
           </div>
           <h1 className="text-2xl font-bold text-white mb-2">{isSignUp ? 'Create Account' : 'Welcome Back'}</h1>
           <p className="text-slate-400">
