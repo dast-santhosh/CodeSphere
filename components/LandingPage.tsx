@@ -2,7 +2,6 @@
 import React from 'react';
 import { Terminal, Video, Cpu, Shield, Globe, ArrowRight, Code, Check, Mail, Phone, MapPin } from 'lucide-react';
 import { APP_LOGO } from '../constants';
-import ThreeDHero from './ThreeDHero';
 
 interface LandingPageProps {
   onNavigate: (view: 'landing' | 'login' | 'about' | 'pricing') => void;
@@ -52,80 +51,43 @@ const LandingPage: React.FC<LandingPageProps> = ({ onNavigate }) => {
       </nav>
 
       {/* Hero Section */}
-      <section className="relative pt-32 pb-20 px-6 border-b border-neutral-800 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-neutral-900 via-neutral-950 to-neutral-950">
-        <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+      <section className="relative pt-32 pb-20 px-6 border-b border-neutral-800">
+        <div className="max-w-5xl mx-auto text-center">
+            <div className="inline-flex items-center gap-2 px-3 py-1 bg-neutral-900 border border-neutral-800 text-xs text-blue-400 font-mono mb-8">
+                <span className="w-2 h-2 bg-blue-500 animate-pulse"></span>
+                V2.0 LIVE SYSTEM OPERATIONAL
+            </div>
             
-            {/* Left Column: Text */}
-            <div className="text-center lg:text-left z-10">
-                <div className="inline-flex items-center gap-2 px-3 py-1 bg-neutral-900 border border-neutral-800 text-xs text-blue-400 font-mono mb-8">
-                    <span className="w-2 h-2 bg-blue-500 animate-pulse"></span>
-                    V2.0 LIVE SYSTEM OPERATIONAL
-                </div>
-                
-                <h1 className="text-5xl md:text-7xl font-bold mb-6 tracking-tight leading-tight">
-                    The Future of <br />
-                    <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-400">Computer Programming</span>
-                </h1>
-                
-                <p className="text-lg text-neutral-400 max-w-xl mx-auto lg:mx-0 mb-10 leading-relaxed">
-                    An immersive, all-in-one education platform combining real-time live classes, AI-powered tutoring, and an interactive coding environment.
-                </p>
+            <h1 className="text-5xl md:text-7xl font-bold mb-6 tracking-tight">
+                The Future of <br />
+                <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-400">Computer Programming</span>
+            </h1>
+            
+            <p className="text-lg text-neutral-400 max-w-2xl mx-auto mb-10 leading-relaxed">
+                An immersive, all-in-one education platform combining real-time live classes, AI-powered tutoring, and an interactive coding environment.
+            </p>
 
-                <div className="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-4">
-                    <button 
-                        onClick={() => onNavigate('login')}
-                        className="w-full sm:w-auto px-8 py-4 bg-blue-600 hover:bg-blue-500 text-white font-bold text-lg flex items-center justify-center gap-2 transition-all rounded-none shadow-lg shadow-blue-900/20"
-                    >
-                        Start Learning <ArrowRight size={20} />
-                    </button>
-                    <button 
-                        onClick={() => onNavigate('pricing')}
-                        className="w-full sm:w-auto px-8 py-4 bg-neutral-900 hover:bg-neutral-800 border border-neutral-800 text-white font-bold text-lg transition-all rounded-none"
-                    >
-                        View Courses
-                    </button>
-                </div>
-
-                <div className="mt-16 pt-8 border-t border-neutral-900 flex flex-col items-center lg:items-start">
-                    <p className="text-neutral-500 text-sm mb-4 uppercase tracking-widest">An integral part of</p>
-                    <a href="https://codespherekkdi.wordpress.com/" target="_blank" rel="noreferrer" className="group">
-                        <div className="text-2xl font-bold text-white group-hover:text-blue-400 transition-colors">CodeSphere Institute Karaikudi</div>
-                        <div className="text-neutral-600 text-sm group-hover:text-neutral-500">Excellence in Tech Education</div>
-                    </a>
-                </div>
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+                <button 
+                    onClick={() => onNavigate('login')}
+                    className="w-full sm:w-auto px-8 py-4 bg-blue-600 hover:bg-blue-500 text-white font-bold text-lg flex items-center justify-center gap-2 transition-all rounded-none shadow-lg shadow-blue-900/20"
+                >
+                    Start Learning <ArrowRight size={20} />
+                </button>
+                <button 
+                    onClick={() => onNavigate('pricing')}
+                    className="w-full sm:w-auto px-8 py-4 bg-neutral-900 hover:bg-neutral-800 border border-neutral-800 text-white font-bold text-lg transition-all rounded-none"
+                >
+                    View Courses
+                </button>
             </div>
 
-            {/* Right Column: 3D Monitor */}
-            <div className="relative w-full h-[500px] flex items-center justify-center perspective-1000">
-                {/* Monitor Frame */}
-                <div className="relative w-full h-[400px] bg-neutral-900 border-8 border-neutral-800 rounded-xl shadow-2xl overflow-hidden group">
-                    {/* Screen Glow */}
-                    <div className="absolute inset-0 bg-blue-500/5 z-0 animate-pulse"></div>
-                    
-                    {/* 3D Content */}
-                    <div className="absolute inset-0 z-10">
-                        <ThreeDHero />
-                    </div>
-
-                    {/* Scanlines Effect Overlay */}
-                    <div className="absolute inset-0 z-20 pointer-events-none bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.25)_50%),linear-gradient(90deg,rgba(255,0,0,0.06),rgba(0,255,0,0.02),rgba(0,0,255,0.06))] bg-[length:100%_2px,3px_100%] bg-repeat opacity-20"></div>
-                    
-                    {/* Monitor Gloss */}
-                    <div className="absolute inset-0 z-30 bg-gradient-to-br from-white/5 to-transparent pointer-events-none"></div>
-
-                    {/* Code Overlay Text (Optional Visuals) */}
-                    <div className="absolute bottom-4 left-4 z-20">
-                         <div className="text-[10px] text-green-500 font-mono">
-                             SYSTEM_STATUS: ONLINE<br/>
-                             RENDERING_ENGINE: ACTIVE<br/>
-                             FPS: 60
-                         </div>
-                    </div>
-                </div>
-
-                {/* Monitor Stand */}
-                <div className="absolute -bottom-12 w-32 h-16 bg-neutral-800 transform perspective-x-50"></div>
-                <div className="absolute -bottom-14 w-48 h-4 bg-neutral-800 rounded-t-lg"></div>
+            <div className="mt-16 pt-8 border-t border-neutral-900 flex flex-col items-center">
+                <p className="text-neutral-500 text-sm mb-4 uppercase tracking-widest">An integral part of</p>
+                <a href="https://codespherekkdi.wordpress.com/" target="_blank" rel="noreferrer" className="group">
+                    <div className="text-2xl font-bold text-white group-hover:text-blue-400 transition-colors">CodeSphere Institute Karaikudi</div>
+                    <div className="text-neutral-600 text-sm group-hover:text-neutral-500">Excellence in Tech Education</div>
+                </a>
             </div>
         </div>
       </section>
