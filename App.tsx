@@ -10,6 +10,9 @@ import AdminDashboard from './components/AdminDashboard';
 import LessonEditor from './components/LessonEditor';
 import UserProfile from './components/UserProfile';
 import WaitingRoom from './components/WaitingRoom';
+import LandingPage from './components/LandingPage';
+import AboutPage from './components/AboutPage';
+import PricingPage from './components/PricingPage';
 import { Lesson, User, UserStatus, ScheduledClass } from './types';
 import { INITIAL_CURRICULUM, APP_LOGO } from './constants';
 import { auth, db } from './services/firebase';
@@ -17,11 +20,13 @@ import { onAuthStateChanged, signOut } from 'firebase/auth';
 import { collection, onSnapshot, doc, getDoc, writeBatch, updateDoc, arrayUnion, setDoc, query, orderBy, where } from 'firebase/firestore';
 
 type View = 'dashboard' | 'learn' | 'live' | 'sandbox' | 'profile' | 'admin-dashboard' | 'lesson-editor';
+type PublicView = 'landing' | 'login' | 'about' | 'pricing';
 
 const App: React.FC = () => {
   // Auth State
   const [user, setUser] = useState<User | null>(null);
   const [loadingAuth, setLoadingAuth] = useState(true);
+  const [publicView, setPublicView] = useState<PublicView>('landing');
 
   // App Data State
   const [lessons, setLessons] = useState<Lesson[]>([]);
@@ -232,6 +237,7 @@ const App: React.FC = () => {
         await signOut(auth);
         setUser(null);
         setCurrentView('dashboard');
+        setPublicView('landing'); 
     } catch (error) {
         console.error("Error signing out", error);
     }
@@ -247,7 +253,16 @@ const App: React.FC = () => {
     }
 
     if (!user) {
-        return <Login onLogin={() => {}} />; 
+        switch (publicView) {
+            case 'login':
+                return <Login onLogin={() => {}} />;
+            case 'about':
+                return <AboutPage onNavigate={(view) => setPublicView(view)} />;
+            case 'pricing':
+                return <PricingPage onNavigate={(view) => setPublicView(view)} />;
+            default:
+                return <LandingPage onNavigate={(view) => setPublicView(view)} />;
+        }
     }
 
     if (user.status === 'pending' && user.role !== 'admin') {
@@ -409,6 +424,9 @@ const App: React.FC = () => {
                 scheduledClasses={scheduledClasses}
                 onStartLesson={handleLessonStart} 
                 completedLessonIds={user.completedLessonIds}
+                onJoinLiveClass={() => {
+                    if (activeLiveRoomId) setCurrentView('live');
+                }}
             />
           )}
           
