@@ -55,31 +55,53 @@ const CodeEditor: React.FC<CodeEditorProps> = ({ initialCode, onRun, onChange, o
     }
   };
 
-  // Simple Regex-based Syntax Highlighting for Python
+  // Robust Placeholder-based Syntax Highlighting
+  // This prevents "text-green-400" from having the "400" inside it highlighted recursively
   const getHighlightedCode = (code: string) => {
-      let highlighted = code
+      let text = code
         .replace(/&/g, "&amp;")
         .replace(/</g, "&lt;")
         .replace(/>/g, "&gt;");
 
-      // 1. Strings (Green in IDLE) - Single and Double Quotes
-      highlighted = highlighted.replace(/('.*?'|".*?")/g, '<span class="text-green-400">$1</span>');
+      const replacements: Record<string, string> = {};
+      let idCounter = 0;
 
-      // 2. Comments (Red in IDLE)
-      highlighted = highlighted.replace(/(#.*)/g, '<span class="text-red-400 italic">$1</span>');
+      const store = (html: string) => {
+          const key = `__TOKEN_${idCounter++}__`;
+          replacements[key] = html;
+          return key;
+      };
 
-      // 3. Keywords (Orange in IDLE)
+      // 1. Strings (Green) - Extract first to prevent keyword matching inside
+      text = text.replace(/('.*?'|".*?")/g, (match) => store(`<span class="text-green-400">${match}</span>`));
+
+      // 2. Comments (Red)
+      text = text.replace(/(#.*)/g, (match) => store(`<span class="text-red-400 italic">${match}</span>`));
+
+      // 3. Keywords (Orange)
       const keywords = /\b(def|class|return|if|else|elif|while|for|in|try|except|import|from|as|pass|break|continue|and|or|not|is|None|True|False)\b/g;
-      highlighted = highlighted.replace(keywords, '<span class="text-orange-400 font-bold">$1</span>');
+      text = text.replace(keywords, (match) => store(`<span class="text-orange-400 font-bold">${match}</span>`));
 
-      // 4. Built-ins / Functions (Purple in IDLE)
+      // 4. Built-ins (Purple)
       const builtins = /\b(print|len|range|int|str|float|list|dict|set|input|open|type|super)\b/g;
-      highlighted = highlighted.replace(builtins, '<span class="text-purple-400">$1</span>');
+      text = text.replace(builtins, (match) => store(`<span class="text-purple-400">${match}</span>`));
 
-      // 5. Numbers (Blueish)
-      highlighted = highlighted.replace(/\b(\d+)\b/g, '<span class="text-blue-400">$1</span>');
+      // 5. Numbers (Blue)
+      // Since strings/comments/classes are already masked by placeholders (e.g. __TOKEN_0__), 
+      // simple number regex is safe and won't match inside HTML tags
+      text = text.replace(/\b(\d+)\b/g, (match) => store(`<span class="text-blue-400">${match}</span>`));
 
-      return highlighted;
+      // Restore all placeholders
+      // We iterate keys to ensure we catch everything
+      Object.keys(replacements).forEach(key => {
+          // Use global replace in case we have identical tokens mapped to same key (though logic above makes unique keys per match usually)
+          // Actually, our logic makes unique keys for every single replacement instance, so simple replace works.
+          // However, string.replace(str, str) only replaces first instance. We need global.
+          // Since key is unique __TOKEN_X__, it only appears once.
+          text = text.replace(key, replacements[key]);
+      });
+
+      return text;
   };
 
   return (
@@ -131,8 +153,8 @@ const CodeEditor: React.FC<CodeEditorProps> = ({ initialCode, onRun, onChange, o
         <pre
             ref={preRef}
             aria-hidden="true"
-            className="absolute inset-0 p-4 m-0 pointer-events-none whitespace-pre-wrap break-words leading-relaxed"
-            style={{ fontFamily: 'monospace' }}
+            className="absolute inset-0 p-4 m-0 pointer-events-none whitespace-pre break-normal overflow-hidden"
+            style={{ fontFamily: 'monospace', tabSize: 4 }}
             dangerouslySetInnerHTML={{ __html: getHighlightedCode(code) + '<br>' }} 
         />
 
@@ -143,8 +165,8 @@ const CodeEditor: React.FC<CodeEditorProps> = ({ initialCode, onRun, onChange, o
           onChange={handleCodeChange}
           onKeyDown={handleKeyDown}
           onScroll={handleScroll}
-          className="absolute inset-0 w-full h-full p-4 bg-transparent text-transparent caret-white resize-none focus:outline-none leading-relaxed z-10"
-          style={{ fontFamily: 'monospace' }}
+          className="absolute inset-0 w-full h-full p-4 bg-transparent text-transparent caret-white resize-none focus:outline-none overflow-auto z-10 whitespace-pre"
+          style={{ fontFamily: 'monospace', tabSize: 4 }}
           spellCheck="false"
           autoCapitalize="off"
           autoComplete="off"
