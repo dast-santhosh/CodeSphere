@@ -1,9 +1,9 @@
 
-import React, { useEffect, useRef, useState } from 'react';
-import { Mic, MicOff, Video, VideoOff, PhoneOff, MessageSquare, Users, ScreenShare, Shield, Activity, BarChart2, Plus, X, HelpCircle, Send } from 'lucide-react';
+import React, { useEffect, useRef, useState, memo } from 'react';
+import { Mic, MicOff, Video, VideoOff, MessageSquare, Users, ScreenShare, Activity, BarChart2, X, HelpCircle, Send } from 'lucide-react';
 import { ChatMessage, Role, Poll } from '../types';
 import { db, auth } from '../services/firebase';
-import { collection, doc, setDoc, onSnapshot, addDoc, updateDoc, getDoc, deleteDoc, serverTimestamp, query, orderBy, increment } from 'firebase/firestore';
+import { collection, doc, setDoc, onSnapshot, addDoc, updateDoc, deleteDoc, serverTimestamp, query, orderBy } from 'firebase/firestore';
 import { getAiAssistance } from '../services/geminiService';
 
 interface LiveClassroomProps {
@@ -21,8 +21,48 @@ const iceServers = {
   iceCandidatePoolSize: 10,
 };
 
+// --- MEMOIZED VIDEO PLAYER ---
+// This prevents the video from reloading/buffering when the parent state (chat typing) changes.
+const VideoPlayer = memo(({ stream, isLocal, label, isScreenShare }: { stream: MediaStream | null, isLocal: boolean, label?: string, isScreenShare?: boolean }) => {
+    const videoRef = useRef<HTMLVideoElement>(null);
+
+    useEffect(() => {
+        if (videoRef.current && stream) {
+            videoRef.current.srcObject = stream;
+        }
+    }, [stream]);
+
+    if (!stream) {
+        return (
+            <div className="w-full h-full flex items-center justify-center flex-col text-slate-500 animate-pulse bg-black">
+                <Activity size={48} className="mb-4 text-slate-700" />
+                <p>Waiting for stream...</p>
+            </div>
+        );
+    }
+
+    return (
+        <div className="w-full h-full relative bg-black">
+            <video
+                ref={videoRef}
+                autoPlay
+                playsInline
+                muted={isLocal} // Only mute local video to prevent echo
+                className={`w-full h-full object-contain ${isLocal && !isScreenShare ? 'transform scale-x-[-1]' : ''}`}
+            />
+            {label && (
+                <div className="absolute top-4 left-4 bg-black/60 px-3 py-1.5 rounded-lg text-sm text-white font-bold flex items-center backdrop-blur-md z-10">
+                    <span className="w-2 h-2 rounded-full bg-red-500 mr-2 animate-pulse"></span>
+                    {label}
+                </div>
+            )}
+        </div>
+    );
+});
+
 const LiveClassroom: React.FC<LiveClassroomProps> = ({ role = 'student', onLeave }) => {
   const [localStream, setLocalStream] = useState<MediaStream | null>(null);
+  // Store remote streams. For Admin, this contains student streams. For Student, it contains 'admin' stream.
   const [remoteStreams, setRemoteStreams] = useState<Map<string, MediaStream>>(new Map());
   const [isMicOn, setIsMicOn] = useState(true);
   const [isVideoOn, setIsVideoOn] = useState(true);
@@ -54,7 +94,18 @@ const LiveClassroom: React.FC<LiveClassroomProps> = ({ role = 'student', onLeave
   useEffect(() => {
     const startLocalStream = async () => {
       try {
-        const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+        const stream = await navigator.mediaDevices.getUserMedia({ 
+            video: { 
+                width: { ideal: 1280 }, 
+                height: { ideal: 720 },
+                frameRate: { ideal: 30 } 
+            }, 
+            audio: { 
+                echoCancellation: true, 
+                noiseSuppression: true,
+                autoGainControl: true
+            } 
+        });
         setLocalStream(stream);
         localStreamRef.current = stream;
         
@@ -77,28 +128,33 @@ const LiveClassroom: React.FC<LiveClassroomProps> = ({ role = 'student', onLeave
 
   // 2. Chat Listener
   useEffect(() => {
-     const q = query(collection(db, `rooms/${ROOM_ID}/messages`), orderBy('timestamp', 'asc'));
+     const q = query(collection(db, `rooms/${ROOM_ID}/messages`));
      const unsub = onSnapshot(q, (snapshot) => {
          const msgs: ChatMessage[] = [];
          snapshot.forEach(doc => msgs.push(doc.data() as ChatMessage));
+         // Safe Client-side sort handling null timestamps
+         msgs.sort((a, b) => {
+             const tA = a.timestamp ? (a.timestamp as any).seconds : Date.now()/1000 + 9999;
+             const tB = b.timestamp ? (b.timestamp as any).seconds : Date.now()/1000 + 9999;
+             return tA - tB;
+         });
          setChatMessages(msgs);
-     });
+     }, (err) => console.error("Chat error:", err));
      return () => unsub();
   }, []);
 
   // 3. Polls Listener
   useEffect(() => {
-      const q = query(collection(db, `rooms/${ROOM_ID}/polls`), orderBy('createdAt', 'desc'));
+      const q = query(collection(db, `rooms/${ROOM_ID}/polls`));
       const unsub = onSnapshot(q, (snapshot) => {
           const fetchedPolls: Poll[] = [];
           snapshot.forEach(doc => fetchedPolls.push({id: doc.id, ...doc.data()} as Poll));
           setPolls(fetchedPolls);
-      });
+      }, (err) => console.error("Poll error:", err));
       return () => unsub();
   }, []);
 
   const cleanup = async () => {
-      // Stop all tracks
       localStreamRef.current?.getTracks().forEach(track => track.stop());
       screenStreamRef.current?.getTracks().forEach(track => track.stop());
       
@@ -107,23 +163,25 @@ const LiveClassroom: React.FC<LiveClassroomProps> = ({ role = 'student', onLeave
       unsubscribesRef.current.forEach(unsub => unsub());
 
       if (role === 'student' && auth.currentUser) {
-          await deleteDoc(doc(db, `rooms/${ROOM_ID}/participants`, auth.currentUser.uid));
+          try {
+             await deleteDoc(doc(db, `rooms/${ROOM_ID}/participants`, auth.currentUser.uid));
+          } catch(e) { console.log("Cleanup error", e); }
       } else if (role === 'admin') {
-          // Mark room as inactive
-          await updateDoc(doc(db, "rooms", ROOM_ID), { active: false });
+          try {
+             await updateDoc(doc(db, "rooms", ROOM_ID), { active: false });
+          } catch(e) { console.log("Cleanup error", e); }
       }
   };
 
   // --- ADMIN LOGIC ---
   const createRoom = async () => {
-      // Set room active
       await setDoc(doc(db, "rooms", ROOM_ID), { active: true, startedAt: serverTimestamp() }, { merge: true });
 
       const participantsRef = collection(db, `rooms/${ROOM_ID}/participants`);
       const unsub = onSnapshot(participantsRef, (snapshot) => {
           snapshot.docChanges().forEach(async (change) => {
-              const userId = change.doc.id;
               if (change.type === 'added') {
+                  const userId = change.doc.id;
                   await callUser(userId);
               }
           });
@@ -133,28 +191,31 @@ const LiveClassroom: React.FC<LiveClassroomProps> = ({ role = 'student', onLeave
 
   const callUser = async (userId: string) => {
       if (!localStreamRef.current) return;
+      if (pcsRef.current.has(userId)) return; 
       
       const pc = new RTCPeerConnection(iceServers);
       pcsRef.current.set(userId, pc);
 
-      // Determine which stream to send (Camera or Screen)
       const streamToSend = isScreenSharing && screenStreamRef.current ? screenStreamRef.current : localStreamRef.current;
       
       streamToSend.getTracks().forEach(track => {
           pc.addTrack(track, streamToSend);
       });
 
+      // Admin receives Student Audio/Video
       pc.ontrack = (event) => {
-          event.streams[0].getTracks().forEach(track => {
-              const remoteStream = new MediaStream();
-              remoteStream.addTrack(track);
-              setRemoteStreams(prev => new Map(prev).set(userId, remoteStream));
-          });
+          // Use the stream provided by the event for stability
+          const stream = event.streams[0] || new MediaStream();
+          if (event.streams.length === 0) {
+              stream.addTrack(event.track);
+          }
+          // Store it in state so we can render an <audio> tag for it
+          setRemoteStreams(prev => new Map(prev).set(userId, stream));
       };
 
-      // ICE Candidates Logic
       const participantsRef = doc(db, `rooms/${ROOM_ID}/participants`, userId);
       const callerCandidatesCollection = collection(participantsRef, 'callerCandidates');
+      
       pc.onicecandidate = (event) => {
           if (event.candidate) {
               addDoc(callerCandidatesCollection, event.candidate.toJSON());
@@ -185,7 +246,19 @@ const LiveClassroom: React.FC<LiveClassroomProps> = ({ role = 'student', onLeave
           snapshot.docChanges().forEach((change) => {
               if (change.type === 'added') {
                   const data = change.doc.data();
-                  pc.addIceCandidate(new RTCIceCandidate(data));
+                  const candidate = new RTCIceCandidate(data);
+                  
+                  // Safety: Ensure remote desc exists before adding candidate
+                  if (pc.remoteDescription) {
+                      pc.addIceCandidate(candidate).catch(e => console.error("ICE Error", e));
+                  } else {
+                      // Retry logic if candidate arrives before answer
+                      setTimeout(() => {
+                          if (pc.remoteDescription) {
+                              pc.addIceCandidate(candidate).catch(e => console.error("ICE Error Retry", e));
+                          }
+                      }, 1500);
+                  }
               }
           });
       });
@@ -198,6 +271,7 @@ const LiveClassroom: React.FC<LiveClassroomProps> = ({ role = 'student', onLeave
       const userId = auth.currentUser.uid;
 
       const participantRef = doc(db, `rooms/${ROOM_ID}/participants`, userId);
+      // Reset candidates on join
       await setDoc(participantRef, { joined: true });
 
       const unsub = onSnapshot(participantRef, async (snapshot) => {
@@ -206,16 +280,19 @@ const LiveClassroom: React.FC<LiveClassroomProps> = ({ role = 'student', onLeave
               const pc = new RTCPeerConnection(iceServers);
               pcsRef.current.set('admin', pc);
 
+              // Add local tracks (Audio/Video)
               localStreamRef.current!.getTracks().forEach(track => {
                   pc.addTrack(track, localStreamRef.current!);
               });
 
+              // Receive Remote Tracks (Admin Video/Audio)
               pc.ontrack = (event) => {
-                  event.streams[0].getTracks().forEach(track => {
-                      const remoteStream = new MediaStream();
-                      remoteStream.addTrack(track);
-                      setRemoteStreams(prev => new Map(prev).set('admin', remoteStream));
-                  });
+                  const stream = event.streams[0] || new MediaStream();
+                  if (event.streams.length === 0) {
+                      stream.addTrack(event.track);
+                  }
+                  // Force state update to trigger re-render of video player
+                  setRemoteStreams(prev => new Map(prev).set('admin', stream));
               };
 
               const calleeCandidatesCollection = collection(participantRef, 'calleeCandidates');
@@ -240,7 +317,16 @@ const LiveClassroom: React.FC<LiveClassroomProps> = ({ role = 'student', onLeave
                   snapshot.docChanges().forEach((change) => {
                       if (change.type === 'added') {
                           const candidateData = change.doc.data();
-                          pc.addIceCandidate(new RTCIceCandidate(candidateData));
+                          const candidate = new RTCIceCandidate(candidateData);
+                          if (pc.remoteDescription) {
+                              pc.addIceCandidate(candidate).catch(e => console.error("ICE Error", e));
+                          } else {
+                              setTimeout(() => {
+                                  if (pc.remoteDescription) {
+                                      pc.addIceCandidate(candidate).catch(e => console.error("ICE Error Retry", e));
+                                  }
+                              }, 1500);
+                          }
                       }
                   });
               });
@@ -257,22 +343,26 @@ const LiveClassroom: React.FC<LiveClassroomProps> = ({ role = 'student', onLeave
 
     if (!isScreenSharing) {
         try {
-            const stream = await navigator.mediaDevices.getDisplayMedia({ video: true });
-            setLocalStream(stream);
+            const stream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true });
             screenStreamRef.current = stream;
             setIsScreenSharing(true);
+            setLocalStream(stream); // Show local preview
 
-            // Replace video track in all PeerConnections
             const videoTrack = stream.getVideoTracks()[0];
+            const audioTrack = stream.getAudioTracks()[0];
+
             pcsRef.current.forEach((pc) => {
-                const sender = pc.getSenders().find((s) => s.track?.kind === 'video');
-                if (sender) sender.replaceTrack(videoTrack);
+                const senders = pc.getSenders();
+                const videoSender = senders.find((s) => s.track?.kind === 'video');
+                if (videoSender) videoSender.replaceTrack(videoTrack);
+                
+                if (audioTrack) {
+                    const audioSender = senders.find((s) => s.track?.kind === 'audio');
+                    if (audioSender) audioSender.replaceTrack(audioTrack);
+                }
             });
 
-            // Handle stop sharing via browser UI
-            videoTrack.onended = () => {
-                stopScreenShare();
-            };
+            videoTrack.onended = () => stopScreenShare();
 
         } catch (err) {
             console.error("Error sharing screen", err);
@@ -308,7 +398,7 @@ const LiveClassroom: React.FC<LiveClassroomProps> = ({ role = 'student', onLeave
           timestamp: new Date()
       };
       
-      await addDoc(collection(db, `rooms/${ROOM_ID}/messages`), {
+      await setDoc(doc(db, `rooms/${ROOM_ID}/messages`, msg.id), {
           ...msg,
           timestamp: serverTimestamp()
       });
@@ -330,7 +420,6 @@ const LiveClassroom: React.FC<LiveClassroomProps> = ({ role = 'student', onLeave
   };
 
   const votePoll = async (pollId: string, optionId: number) => {
-      // In a real app, track user votes to prevent duplicates
       const pollRef = doc(db, `rooms/${ROOM_ID}/polls`, pollId);
       const poll = polls.find(p => p.id === pollId);
       if (!poll) return;
@@ -366,7 +455,7 @@ const LiveClassroom: React.FC<LiveClassroomProps> = ({ role = 'student', onLeave
             <div className="flex items-center gap-2">
                  <span className="bg-red-500/20 text-red-500 text-xs font-bold px-2 py-1 rounded border border-red-500/20">LIVE</span>
                  <span className="bg-slate-800 text-slate-400 text-xs font-mono px-2 py-1 rounded flex items-center">
-                     <Users size={12} className="mr-1"/> {remoteStreams.size + 1}
+                     <Users size={12} className="mr-1"/> {role === 'admin' ? remoteStreams.size : (remoteStreams.size > 0 ? 'Connected' : 'Connecting...')}
                  </span>
             </div>
         </div>
@@ -374,36 +463,30 @@ const LiveClassroom: React.FC<LiveClassroomProps> = ({ role = 'student', onLeave
         {/* Main Stage Video */}
         <div className="flex-1 bg-black rounded-2xl overflow-hidden relative shadow-2xl border border-slate-800">
              {role === 'admin' ? (
-                 /* Admin View: Show Local Stream (Mirror) */
-                 <video 
-                    autoPlay 
-                    muted 
-                    playsInline 
-                    ref={video => { if (video) video.srcObject = localStream }}
-                    className={`w-full h-full object-contain ${!isScreenSharing ? 'transform scale-x-[-1]' : ''}`}
+                 <VideoPlayer 
+                    key={localStream?.id || 'local'}
+                    stream={localStream} 
+                    isLocal={true} 
+                    label="Instructor (You)" 
+                    isScreenShare={isScreenSharing} 
                  />
              ) : (
-                 /* Student View: Show Admin Remote Stream */
-                 remoteStreams.get('admin') ? (
-                    <video 
-                        autoPlay 
-                        playsInline 
-                        ref={video => { if (video) video.srcObject = remoteStreams.get('admin')! }}
-                        className="w-full h-full object-contain"
-                    />
-                 ) : (
-                     <div className="w-full h-full flex items-center justify-center flex-col text-slate-500 animate-pulse">
-                         <Activity size={48} className="mb-4 text-slate-700" />
-                         <p>Waiting for Instructor video...</p>
-                     </div>
-                 )
+                 <VideoPlayer 
+                    key={remoteStreams.get('admin')?.id || 'remote'}
+                    stream={remoteStreams.get('admin') || null} 
+                    isLocal={false} 
+                    label="Instructor" 
+                 />
              )}
              
-             {/* Host Label Overlay */}
-             <div className="absolute top-4 left-4 bg-black/60 px-3 py-1.5 rounded-lg text-sm text-white font-bold flex items-center backdrop-blur-md">
-                 <span className="w-2 h-2 rounded-full bg-red-500 mr-2 animate-pulse"></span>
-                 Instructor
-             </div>
+             {/* HIDDEN AUDIO ELEMENTS FOR ADMIN TO HEAR STUDENTS */}
+             {role === 'admin' && Array.from(remoteStreams.entries()).map(([id, stream]) => (
+                 <audio 
+                    key={`audio-${id}`} 
+                    autoPlay 
+                    ref={ref => { if (ref && ref.srcObject !== stream) ref.srcObject = stream; }} 
+                 />
+             ))}
         </div>
 
         {/* Bottom Controls */}
@@ -417,7 +500,6 @@ const LiveClassroom: React.FC<LiveClassroomProps> = ({ role = 'student', onLeave
                 {isMicOn ? <Mic size={24} /> : <MicOff size={24} />}
             </button>
             
-            {/* Camera Toggle (Admin Only - Students have hidden video usually) */}
             <button onClick={() => {
                  if (localStreamRef.current) {
                      localStreamRef.current.getVideoTracks().forEach(t => t.enabled = !isVideoOn);
@@ -445,7 +527,6 @@ const LiveClassroom: React.FC<LiveClassroomProps> = ({ role = 'student', onLeave
 
       {/* --- RIGHT: SIDEBAR (Chat & Polls) --- */}
       <div className="w-96 bg-slate-900 border-l border-slate-800 flex flex-col z-20 shadow-2xl">
-          {/* Tabs */}
           <div className="flex border-b border-slate-800">
               <button 
                 onClick={() => setActiveTab('chat')}
@@ -468,7 +549,6 @@ const LiveClassroom: React.FC<LiveClassroomProps> = ({ role = 'student', onLeave
                         <div key={msg.id} className={`flex flex-col ${msg.senderName.includes(auth.currentUser?.displayName || 'x') ? 'items-end' : 'items-start'}`}>
                             <div className="flex items-baseline mb-1">
                                 <span className={`text-xs font-bold ${msg.senderName === 'Instructor' ? 'text-red-400' : 'text-slate-500'}`}>{msg.senderName}</span>
-                                <span className="text-[10px] text-slate-600 ml-2">{new Date((msg.timestamp as any).seconds ? (msg.timestamp as any).seconds * 1000 : msg.timestamp).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</span>
                             </div>
                             <div className={`px-4 py-2 rounded-2xl text-sm max-w-[90%] ${msg.senderName.includes(auth.currentUser?.displayName || 'x') ? 'bg-primary-600 text-white rounded-tr-none' : 'bg-slate-800 text-slate-200 rounded-tl-none border border-slate-700'}`}>
                                 {msg.text}
@@ -483,7 +563,7 @@ const LiveClassroom: React.FC<LiveClassroomProps> = ({ role = 'student', onLeave
                             value={newMessage}
                             onChange={e => setNewMessage(e.target.value)}
                             placeholder="Type a message..."
-                            className="w-full bg-slate-900 border border-slate-700 rounded-full pl-5 pr-12 py-3 text-white text-sm focus:outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500"
+                            className="w-full bg-slate-900 border border-slate-700 rounded-full pl-5 pr-12 py-3 text-white text-sm focus:outline-none focus:border-primary-500"
                         />
                         <button type="submit" className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 bg-primary-600 rounded-full text-white hover:bg-primary-500">
                             <Send size={16} />
@@ -546,23 +626,14 @@ const LiveClassroom: React.FC<LiveClassroomProps> = ({ role = 'student', onLeave
                                       );
                                   })}
                               </div>
-                              <div className="mt-3 text-right text-xs text-slate-500">
-                                  {poll.options.reduce((acc, curr) => acc + curr.votes, 0)} votes
-                              </div>
                           </div>
                       ))}
-                      {polls.length === 0 && (
-                          <div className="text-center text-slate-500 mt-10">
-                              <BarChart2 size={48} className="mx-auto mb-4 opacity-20" />
-                              <p>No active polls</p>
-                          </div>
-                      )}
                   </div>
               </div>
           )}
       </div>
 
-      {/* --- AI DOUBT SOLVER OVERLAY --- */}
+      {/* --- AI DOUBT SOLVER --- */}
       <div className="absolute bottom-6 left-6 z-50">
           {!showAiHelp ? (
               <button 

@@ -33,10 +33,11 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
-    // --- LIVE CLASSROOM (WebRTC Signaling) ---
+    // --- LIVE CLASSROOM (WebRTC Signaling & Chat) ---
     match /rooms/{roomId} {
       allow read, write: if isSignedIn();
       
+      // Allow signaling for WebRTC
       match /participants/{participantId} {
         allow read, write: if isSignedIn();
         
@@ -46,6 +47,16 @@ service cloud.firestore {
         match /calleeCandidates/{candidateId} {
           allow read, write: if isSignedIn();
         }
+      }
+
+      // Allow Chat Messages
+      match /messages/{messageId} {
+        allow read, write: if isSignedIn();
+      }
+
+      // Allow Polls
+      match /polls/{pollId} {
+        allow read, write: if isSignedIn();
       }
     }
   }
