@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { Layout, GraduationCap, Code, Video, LayoutDashboard, User as UserIcon, LogOut, Shield, AlertTriangle } from 'lucide-react';
+import { Layout, GraduationCap, Code, Video, LayoutDashboard, User as UserIcon, LogOut, Shield, AlertTriangle, Moon, Sun } from 'lucide-react';
 import Dashboard from './components/Dashboard';
 import LessonView from './components/LessonView';
 import LiveClassroom from './components/LiveClassroom';
@@ -32,6 +32,25 @@ const App: React.FC = () => {
   const [currentView, setCurrentView] = useState<View>('dashboard');
   const [activeLesson, setActiveLesson] = useState<Lesson | null>(null);
   const [editingLesson, setEditingLesson] = useState<Lesson | null>(null);
+  
+  // Live Class State
+  const [activeLiveRoomId, setActiveLiveRoomId] = useState<string | null>(null);
+
+  // Theme State
+  const [theme, setTheme] = useState(() => localStorage.getItem('theme') || 'dark');
+
+  useEffect(() => {
+    if (theme === 'dark') {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+    localStorage.setItem('theme', theme);
+  }, [theme]);
+
+  const toggleTheme = () => {
+    setTheme(prev => prev === 'dark' ? 'light' : 'dark');
+  };
 
   // 1. Listen to Auth Changes and User Data Stream
   useEffect(() => {
@@ -40,7 +59,6 @@ const App: React.FC = () => {
     const unsubscribeAuth = onAuthStateChanged(auth, async (firebaseUser) => {
         if (firebaseUser) {
             // Real-time listener for User Profile
-            // This handles role updates and lesson completion sync immediately
             unsubscribeUser = onSnapshot(doc(db, "users", firebaseUser.uid), (docSnapshot) => {
                 if (docSnapshot.exists()) {
                     const data = docSnapshot.data();
@@ -55,7 +73,6 @@ const App: React.FC = () => {
                         progress: data.progress || {}
                     });
                 } else {
-                    // Fallback if doc doesn't exist yet (race condition on signup)
                     setUser({
                         id: firebaseUser.uid,
                         name: firebaseUser.displayName || 'User',
@@ -88,7 +105,7 @@ const App: React.FC = () => {
     };
   }, []);
 
-  // 2. Fetch Lessons & Classes
+  // 2. Fetch Lessons, Classes, and Live Config
   useEffect(() => {
     if (!user) return;
 
@@ -130,10 +147,20 @@ const App: React.FC = () => {
     }, (error) => {
         console.error("Classes fetch error:", error);
     });
+    
+    // Listen for Active Live Class
+    const unsubscribeLiveConfig = onSnapshot(doc(db, "rooms", "live-config"), (doc) => {
+        if (doc.exists() && doc.data().active) {
+            setActiveLiveRoomId(doc.data().roomId);
+        } else {
+            setActiveLiveRoomId(null);
+        }
+    });
 
     return () => {
         unsubscribeLessons();
         unsubscribeClasses();
+        unsubscribeLiveConfig();
     };
   }, [user?.id, user?.role, dbError]);
 
@@ -204,7 +231,7 @@ const App: React.FC = () => {
   const renderContent = () => {
     if (loadingAuth) {
         return (
-            <div className="flex h-screen items-center justify-center bg-neutral-950">
+            <div className="flex h-screen items-center justify-center bg-gray-50 dark:bg-neutral-950">
                 <div className="animate-spin h-12 w-12 border-b-2 border-primary-500"></div>
             </div>
         );
@@ -220,30 +247,30 @@ const App: React.FC = () => {
 
     if (user.status === 'rejected' && user.role !== 'admin') {
         return (
-             <div className="flex flex-col h-screen items-center justify-center bg-neutral-950 text-center p-8">
+             <div className="flex flex-col h-screen items-center justify-center bg-gray-50 dark:bg-neutral-950 text-center p-8">
                 <AlertTriangle size={64} className="text-red-500 mb-6" />
-                <h1 className="text-3xl font-bold text-white mb-4">Registration Rejected</h1>
-                <p className="text-neutral-400 mb-8 max-w-lg">
+                <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-4">Registration Rejected</h1>
+                <p className="text-gray-500 dark:text-neutral-400 mb-8 max-w-lg">
                     Your application to join the course was declined by an administrator.
                 </p>
-                <button onClick={handleLogout} className="bg-neutral-800 text-white px-6 py-2 hover:bg-neutral-700">Sign Out</button>
+                <button onClick={handleLogout} className="bg-gray-200 dark:bg-neutral-800 text-gray-900 dark:text-white px-6 py-2 rounded-none hover:bg-gray-300 dark:hover:bg-neutral-700">Sign Out</button>
             </div>
         );
     }
 
     if (dbError) {
         return (
-            <div className="flex flex-col h-screen items-center justify-center bg-neutral-950 text-center p-8">
+            <div className="flex flex-col h-screen items-center justify-center bg-gray-50 dark:bg-neutral-950 text-center p-8">
                 <AlertTriangle size={64} className="text-red-500 mb-6" />
-                <h1 className="text-3xl font-bold text-white mb-4">Database Setup Required</h1>
-                <p className="text-neutral-400 mb-8 max-w-lg">
+                <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-4">Database Setup Required</h1>
+                <p className="text-gray-500 dark:text-neutral-400 mb-8 max-w-lg">
                     The connection to the backend database failed. This usually happens if the Firestore API hasn't been enabled for your project yet.
                 </p>
                 <a 
                     href="https://console.developers.google.com/apis/api/firestore.googleapis.com/overview?project=codesphere-35dae"
                     target="_blank" 
                     rel="noreferrer"
-                    className="bg-primary-600 hover:bg-primary-500 text-white px-8 py-3 font-bold transition-all shadow-lg shadow-primary-500/20"
+                    className="bg-primary-600 hover:bg-primary-500 text-white px-8 py-3 rounded-none font-bold transition-all shadow-lg shadow-primary-500/20"
                 >
                     Enable Firestore API &rarr;
                 </a>
@@ -252,15 +279,15 @@ const App: React.FC = () => {
     }
 
     return (
-      <div className="flex h-screen overflow-hidden bg-neutral-950">
+      <div className="flex h-screen overflow-hidden bg-gray-50 dark:bg-neutral-950">
         {/* Sidebar */}
-        <aside className="w-20 lg:w-64 bg-neutral-900 border-r border-neutral-800 flex flex-col justify-between transition-all duration-300">
+        <aside className="w-20 lg:w-64 bg-white dark:bg-neutral-900 border-r border-gray-200 dark:border-neutral-800 flex flex-col justify-between transition-all duration-300">
           <div>
-            <div className="h-16 flex items-center justify-center lg:justify-start lg:px-6 border-b border-neutral-800">
-              <div className="w-10 h-10 overflow-hidden flex items-center justify-center shadow-lg shadow-primary-500/10 border border-primary-900/50">
+            <div className="h-16 flex items-center justify-center lg:justify-start lg:px-6 border-b border-gray-200 dark:border-neutral-800">
+              <div className="w-10 h-10 overflow-hidden flex items-center justify-center shadow-lg shadow-primary-500/10 border border-primary-200 dark:border-primary-900/50 rounded-none">
                  <img src={APP_LOGO} alt="Apex Code Labs" className="w-full h-full object-cover" />
               </div>
-              <span className="ml-3 font-bold text-xl text-white hidden lg:block tracking-tight">Apex Code Labs</span>
+              <span className="ml-3 font-bold text-xl text-gray-900 dark:text-white hidden lg:block tracking-tight">Apex Code Labs</span>
             </div>
 
             <nav className="p-4 space-y-2">
@@ -295,8 +322,8 @@ const App: React.FC = () => {
               />
               
               {user.role === 'admin' && (
-                <div className="pt-4 mt-4 border-t border-neutral-800">
-                    <div className="px-4 text-xs font-bold text-neutral-500 uppercase mb-2 hidden lg:block">Admin Controls</div>
+                <div className="pt-4 mt-4 border-t border-gray-200 dark:border-neutral-800">
+                    <div className="px-4 text-xs font-bold text-gray-400 dark:text-neutral-500 uppercase mb-2 hidden lg:block">Admin Controls</div>
                     <SidebarItem 
                         icon={<Shield size={20} />} 
                         label="Admin Panel" 
@@ -308,23 +335,32 @@ const App: React.FC = () => {
             </nav>
           </div>
 
-          <div className="p-4 border-t border-neutral-800">
+          <div className="p-4 border-t border-gray-200 dark:border-neutral-800 space-y-2">
+             <button
+                onClick={toggleTheme}
+                className="flex items-center justify-center lg:justify-start w-full p-2 text-gray-500 dark:text-neutral-500 hover:bg-gray-100 dark:hover:bg-neutral-800 rounded-none transition-all"
+                title="Toggle Theme"
+             >
+                 {theme === 'dark' ? <Sun size={20} className="lg:mr-3" /> : <Moon size={20} className="lg:mr-3" />}
+                 <span className="hidden lg:inline text-sm font-medium">{theme === 'dark' ? 'Light Mode' : 'Dark Mode'}</span>
+             </button>
+
              <button 
                 onClick={() => setCurrentView('profile')}
-                className={`flex items-center w-full p-2 transition-all mb-2
-                    ${currentView === 'profile' ? 'bg-neutral-800 text-white' : 'hover:bg-neutral-800/50 text-neutral-400'}`}
+                className={`flex items-center w-full p-2 rounded-none transition-all mb-2
+                    ${currentView === 'profile' ? 'bg-gray-100 dark:bg-neutral-800 text-gray-900 dark:text-white' : 'hover:bg-gray-50 dark:hover:bg-neutral-800/50 text-gray-500 dark:text-neutral-400'}`}
              >
-                 <div className="w-8 h-8 overflow-hidden bg-neutral-700 mr-0 lg:mr-3 border border-neutral-600">
+                 <div className="w-8 h-8 overflow-hidden bg-gray-200 dark:bg-neutral-700 mr-0 lg:mr-3 border border-gray-300 dark:border-neutral-600 rounded-none">
                      <img src={user.avatar} alt="User" className="w-full h-full object-cover" />
                  </div>
                  <div className="hidden lg:block text-left overflow-hidden">
-                     <p className="text-sm font-bold text-white truncate">{user.name}</p>
-                     <p className="text-xs text-neutral-500 truncate capitalize">{user.role}</p>
+                     <p className="text-sm font-bold text-gray-900 dark:text-white truncate">{user.name}</p>
+                     <p className="text-xs text-gray-500 dark:text-neutral-500 truncate capitalize">{user.role}</p>
                  </div>
              </button>
              <button 
                 onClick={handleLogout}
-                className="flex items-center justify-center lg:justify-start w-full p-2 text-neutral-500 hover:text-red-400 hover:bg-red-500/10 transition-all"
+                className="flex items-center justify-center lg:justify-start w-full p-2 text-gray-500 dark:text-neutral-500 hover:text-red-500 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-none transition-all"
                 title="Sign Out"
              >
                  <LogOut size={20} className="lg:mr-3" />
@@ -353,16 +389,17 @@ const App: React.FC = () => {
           )}
 
           {currentView === 'learn' && !activeLesson && (
-             <div className="h-full flex flex-col items-center justify-center text-neutral-500">
+             <div className="h-full flex flex-col items-center justify-center text-gray-400 dark:text-neutral-500">
                  <GraduationCap size={48} className="mb-4 opacity-50" />
                  <p>Select a module from the Dashboard to start learning.</p>
-                 <button onClick={() => setCurrentView('dashboard')} className="mt-4 text-primary-400 hover:underline">Go to Dashboard</button>
+                 <button onClick={() => setCurrentView('dashboard')} className="mt-4 text-primary-500 hover:underline">Go to Dashboard</button>
              </div>
           )}
 
           {currentView === 'live' && (
             <LiveClassroom 
                 role={user.role} 
+                roomId={activeLiveRoomId}
                 onLeave={() => setCurrentView('dashboard')} 
             />
           )}
@@ -408,11 +445,11 @@ const App: React.FC = () => {
                <div className="h-full flex items-center justify-center">
                    <div className="text-center">
                        <Shield size={48} className="mx-auto text-red-500 mb-4" />
-                       <h2 className="text-2xl font-bold text-white mb-2">Access Denied</h2>
-                       <p className="text-neutral-400">You do not have permission to view this page.</p>
+                       <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">Access Denied</h2>
+                       <p className="text-gray-500 dark:text-neutral-400">You do not have permission to view this page.</p>
                        <button 
                         onClick={() => setCurrentView('dashboard')}
-                        className="mt-6 px-6 py-2 bg-neutral-800 text-white hover:bg-neutral-700"
+                        className="mt-6 px-6 py-2 bg-gray-200 dark:bg-neutral-800 text-gray-900 dark:text-white hover:bg-gray-300 dark:hover:bg-neutral-700 rounded-none"
                        >
                            Return Home
                        </button>
@@ -426,7 +463,7 @@ const App: React.FC = () => {
   };
 
   return (
-      <div className="min-h-screen bg-neutral-950 text-neutral-100 font-sans selection:bg-primary-500/30">
+      <div className="min-h-screen bg-gray-50 dark:bg-neutral-950 text-gray-900 dark:text-neutral-100 font-sans selection:bg-primary-500/30">
         {renderContent()}
       </div>
   );
@@ -435,14 +472,14 @@ const App: React.FC = () => {
 const SidebarItem = ({ icon, label, active, onClick }: { icon: React.ReactNode, label: string, active: boolean, onClick: () => void }) => (
   <button
     onClick={onClick}
-    className={`w-full flex items-center justify-center lg:justify-start p-3 transition-all duration-200 group
+    className={`w-full flex items-center justify-center lg:justify-start p-3 transition-all duration-200 group rounded-none
       ${active 
         ? 'bg-primary-600 text-white shadow-lg shadow-primary-500/25' 
-        : 'text-neutral-400 hover:bg-neutral-800/50 hover:text-white'
+        : 'text-gray-500 dark:text-neutral-400 hover:bg-gray-100 dark:hover:bg-neutral-800/50 hover:text-gray-900 dark:hover:text-white'
       }`}
     title={label}
   >
-    <span className={`${active ? 'text-white' : 'text-neutral-400 group-hover:text-white'}`}>{icon}</span>
+    <span className={`${active ? 'text-white' : 'text-gray-500 dark:text-neutral-400 group-hover:text-gray-900 dark:group-hover:text-white'}`}>{icon}</span>
     <span className="hidden lg:block ml-3 font-medium text-sm">{label}</span>
   </button>
 );

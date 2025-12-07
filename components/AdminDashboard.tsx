@@ -134,14 +134,23 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
   const handleGoLive = async () => {
       try {
-          await setDoc(doc(db, "rooms", "main-class"), { 
+          const newRoomId = `class-${Date.now()}`;
+          // 1. Update Global Config
+          await setDoc(doc(db, "rooms", "live-config"), { 
+              roomId: newRoomId,
               active: true, 
               startedAt: serverTimestamp() 
-          }, { merge: true });
+          });
+          
+          // 2. Create Room Doc
+          await setDoc(doc(db, "rooms", newRoomId), {
+              active: true,
+              startedAt: serverTimestamp()
+          });
+          
           onStartLiveClass();
       } catch (e) {
           console.error("Error starting class:", e);
-          onStartLiveClass(); 
       }
   };
 

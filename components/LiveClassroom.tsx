@@ -1,6 +1,6 @@
 
 import React, { useEffect, useRef, useState, memo } from 'react';
-import { Mic, MicOff, Video, VideoOff, MessageSquare, Users, ScreenShare, Activity, BarChart2, X, HelpCircle, Send, MoreVertical, Layout, Settings } from 'lucide-react';
+import { Mic, MicOff, Video, VideoOff, MessageSquare, Users, ScreenShare, Activity, BarChart2, X, HelpCircle, Send, MoreVertical, Layout, Settings, Power } from 'lucide-react';
 import { ChatMessage, Role, Poll } from '../types';
 import { db, auth } from '../services/firebase';
 import { collection, doc, setDoc, onSnapshot, addDoc, updateDoc, deleteDoc, serverTimestamp, query, orderBy } from 'firebase/firestore';
@@ -8,6 +8,7 @@ import { getAiAssistance } from '../services/geminiService';
 
 interface LiveClassroomProps {
     role?: Role;
+    roomId: string | null;
     onLeave?: () => void;
 }
 
@@ -54,7 +55,7 @@ const VideoPlayer = memo(({ stream, isLocal, label, isScreenShare }: { stream: M
     );
 });
 
-const LiveClassroom: React.FC<LiveClassroomProps> = ({ role = 'student', onLeave }) => {
+const LiveClassroom: React.FC<LiveClassroomProps> = ({ role = 'student', roomId, onLeave }) => {
   const [localStream, setLocalStream] = useState<MediaStream | null>(null);
   const [remoteStreams, setRemoteStreams] = useState<Map<string, MediaStream>>(new Map());
   const [isMicOn, setIsMicOn] = useState(true);
@@ -79,9 +80,9 @@ const LiveClassroom: React.FC<LiveClassroomProps> = ({ role = 'student', onLeave
   const screenStreamRef = useRef<MediaStream | null>(null);
   const unsubscribesRef = useRef<(() => void)[]>([]);
 
-  const ROOM_ID = 'main-class';
-
   useEffect(() => {
+    if (!roomId) return;
+
     const startLocalStream = async () => {
       try {
         const stream = await navigator.mediaDevices.getUserMedia({ 
@@ -91,18 +92,19 @@ const LiveClassroom: React.FC<LiveClassroomProps> = ({ role = 'student', onLeave
         setLocalStream(stream);
         localStreamRef.current = stream;
         
-        if (role === 'admin') await createRoom();
-        else await joinRoom();
+        if (role === 'admin') await createRoom(roomId);
+        else await joinRoom(roomId);
       } catch (err) {
         console.error("Error accessing media devices:", err);
       }
     };
     startLocalStream();
-    return () => { cleanup(); };
-  }, []);
+    return () => { cleanup(roomId); };
+  }, [roomId]);
 
   useEffect(() => {
-     const q = query(collection(db, `rooms/${ROOM_ID}/messages`));
+     if (!roomId) return;
+     const q = query(collection(db, `rooms/${roomId}/messages`));
      const unsub = onSnapshot(q, (snapshot) => {
          const msgs: ChatMessage[] = [];
          snapshot.forEach(doc => msgs.push(doc.data() as ChatMessage));
@@ -114,19 +116,20 @@ const LiveClassroom: React.FC<LiveClassroomProps> = ({ role = 'student', onLeave
          setChatMessages(msgs);
      });
      return () => unsub();
-  }, []);
+  }, [roomId]);
 
   useEffect(() => {
-      const q = query(collection(db, `rooms/${ROOM_ID}/polls`));
+      if (!roomId) return;
+      const q = query(collection(db, `rooms/${roomId}/polls`));
       const unsub = onSnapshot(q, (snapshot) => {
           const fetchedPolls: Poll[] = [];
           snapshot.forEach(doc => fetchedPolls.push({id: doc.id, ...doc.data()} as Poll));
           setPolls(fetchedPolls);
       });
       return () => unsub();
-  }, []);
+  }, [roomId]);
 
-  const cleanup = async () => {
+  const cleanup = async (currentRoomId: string) => {
       localStreamRef.current?.getTracks().forEach(track => track.stop());
       screenStreamRef.current?.getTracks().forEach(track => track.stop());
       pcsRef.current.forEach(pc => pc.close());
@@ -134,23 +137,22 @@ const LiveClassroom: React.FC<LiveClassroomProps> = ({ role = 'student', onLeave
       unsubscribesRef.current.forEach(unsub => unsub());
 
       if (role === 'student' && auth.currentUser) {
-          try { await deleteDoc(doc(db, `rooms/${ROOM_ID}/participants`, auth.currentUser.uid)); } catch(e) {}
+          try { await deleteDoc(doc(db, `rooms/${currentRoomId}/participants`, auth.currentUser.uid)); } catch(e) {}
       } else if (role === 'admin') {
-          try { await updateDoc(doc(db, "rooms", ROOM_ID), { active: false }); } catch(e) {}
+          // handled by end class button
       }
   };
 
-  const createRoom = async () => {
-      await setDoc(doc(db, "rooms", ROOM_ID), { active: true, startedAt: serverTimestamp() }, { merge: true });
-      const unsub = onSnapshot(collection(db, `rooms/${ROOM_ID}/participants`), (snapshot) => {
+  const createRoom = async (currentRoomId: string) => {
+      const unsub = onSnapshot(collection(db, `rooms/${currentRoomId}/participants`), (snapshot) => {
           snapshot.docChanges().forEach(async (change) => {
-              if (change.type === 'added') await callUser(change.doc.id);
+              if (change.type === 'added') await callUser(change.doc.id, currentRoomId);
           });
       });
       unsubscribesRef.current.push(unsub);
   };
 
-  const callUser = async (userId: string) => {
+  const callUser = async (userId: string, currentRoomId: string) => {
       if (!localStreamRef.current) return;
       if (pcsRef.current.has(userId)) return; 
       
@@ -166,7 +168,7 @@ const LiveClassroom: React.FC<LiveClassroomProps> = ({ role = 'student', onLeave
           setRemoteStreams(prev => new Map(prev).set(userId, stream));
       };
 
-      const participantsRef = doc(db, `rooms/${ROOM_ID}/participants`, userId);
+      const participantsRef = doc(db, `rooms/${currentRoomId}/participants`, userId);
       const callerCandidatesCollection = collection(participantsRef, 'callerCandidates');
       
       pc.onicecandidate = (event) => {
@@ -194,10 +196,10 @@ const LiveClassroom: React.FC<LiveClassroomProps> = ({ role = 'student', onLeave
       }));
   };
 
-  const joinRoom = async () => {
+  const joinRoom = async (currentRoomId: string) => {
       if (!localStreamRef.current || !auth.currentUser) return;
       const userId = auth.currentUser.uid;
-      const participantRef = doc(db, `rooms/${ROOM_ID}/participants`, userId);
+      const participantRef = doc(db, `rooms/${currentRoomId}/participants`, userId);
       await setDoc(participantRef, { joined: true });
 
       unsubscribesRef.current.push(onSnapshot(participantRef, async (snapshot) => {
@@ -281,7 +283,7 @@ const LiveClassroom: React.FC<LiveClassroomProps> = ({ role = 'student', onLeave
 
   const handleSendMessage = async (e: React.FormEvent) => {
       e.preventDefault();
-      if (!newMessage.trim() || !auth.currentUser) return;
+      if (!newMessage.trim() || !auth.currentUser || !roomId) return;
       const msg: ChatMessage = {
           id: Date.now().toString(),
           sender: 'user',
@@ -289,13 +291,13 @@ const LiveClassroom: React.FC<LiveClassroomProps> = ({ role = 'student', onLeave
           text: newMessage,
           timestamp: new Date()
       };
-      await setDoc(doc(db, `rooms/${ROOM_ID}/messages`, msg.id), { ...msg, timestamp: serverTimestamp() });
+      await setDoc(doc(db, `rooms/${roomId}/messages`, msg.id), { ...msg, timestamp: serverTimestamp() });
       setNewMessage('');
   };
 
   const createPoll = async () => {
-      if (!newPollQuestion || newPollOptions.some(o => !o.trim())) return;
-      await addDoc(collection(db, `rooms/${ROOM_ID}/polls`), {
+      if (!newPollQuestion || newPollOptions.some(o => !o.trim()) || !roomId) return;
+      await addDoc(collection(db, `rooms/${roomId}/polls`), {
           question: newPollQuestion,
           options: newPollOptions.map((text, idx) => ({ id: idx, text, votes: 0 })),
           isActive: true,
@@ -306,12 +308,39 @@ const LiveClassroom: React.FC<LiveClassroomProps> = ({ role = 'student', onLeave
   };
 
   const votePoll = async (pollId: string, optionId: number) => {
-      const pollRef = doc(db, `rooms/${ROOM_ID}/polls`, pollId);
+      if (!roomId) return;
+      const pollRef = doc(db, `rooms/${roomId}/polls`, pollId);
       const poll = polls.find(p => p.id === pollId);
       if (!poll) return;
       const updatedOptions = poll.options.map(opt => opt.id === optionId ? { ...opt, votes: opt.votes + 1 } : opt);
       await updateDoc(pollRef, { options: updatedOptions });
   };
+  
+  const handleEndClass = async () => {
+      if (role === 'admin') {
+          if (window.confirm("Are you sure you want to end this class for everyone?")) {
+              await deleteDoc(doc(db, "rooms", "live-config"));
+              onLeave && onLeave();
+          }
+      }
+  };
+
+  if (!roomId) {
+      return (
+          <div className="flex flex-col h-full bg-neutral-950 items-center justify-center text-center p-8">
+              <div className="w-20 h-20 bg-neutral-900 rounded-full flex items-center justify-center mb-6 animate-pulse">
+                  <Video size={40} className="text-neutral-500" />
+              </div>
+              <h1 className="text-2xl font-bold text-white mb-2">Waiting for Instructor</h1>
+              <p className="text-neutral-400 max-w-md">
+                  The live class has not started yet or has ended. Please return to the dashboard and wait for the notification.
+              </p>
+              <button onClick={onLeave} className="mt-8 px-6 py-2 bg-neutral-800 text-white hover:bg-neutral-700 transition-colors">
+                  Return to Dashboard
+              </button>
+          </div>
+      );
+  }
 
   return (
     <div className="flex flex-col h-full bg-neutral-950 font-sans">
@@ -382,10 +411,16 @@ const LiveClassroom: React.FC<LiveClassroomProps> = ({ role = 'student', onLeave
                   <button onClick={() => setShowAiHelp(!showAiHelp)} className="p-3 bg-neutral-800 border border-neutral-700 text-purple-400 hover:bg-neutral-700 transition-all" title="AI Assistant">
                       <HelpCircle size={20} />
                   </button>
-
-                  <button onClick={onLeave} className="px-6 py-2.5 bg-red-600 hover:bg-red-700 text-white text-sm font-medium ml-4 transition-colors">
-                      Leave Class
-                  </button>
+                  
+                  {role === 'admin' ? (
+                      <button onClick={handleEndClass} className="px-6 py-2.5 bg-red-600 hover:bg-red-700 text-white text-sm font-medium ml-4 transition-colors flex items-center">
+                          <Power size={16} className="mr-2" /> End Class
+                      </button>
+                  ) : (
+                      <button onClick={onLeave} className="px-6 py-2.5 bg-red-600/10 border border-red-600/50 hover:bg-red-600 hover:text-white text-red-500 text-sm font-medium ml-4 transition-colors">
+                          Leave Class
+                      </button>
+                  )}
               </div>
           </div>
 
