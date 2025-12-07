@@ -1,8 +1,8 @@
 
 import { Lesson, Difficulty, ChatMessage } from './types';
 
-// REPLACE THIS URL WITH YOUR UPLOADED LOGO URL
-export const APP_LOGO = "https://ui-avatars.com/api/?name=Apex+Code+Labs&background=0ea5e9&color=fff&rounded=true&bold=true&size=128";
+// Professional, Minimalist SVG Logo (Apex A Symbol)
+export const APP_LOGO = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' rx='100' fill='%230f172a'/%3E%3Cpath d='M256 112L96 400H176L256 256L336 400H416L256 112Z' fill='%2338bdf8'/%3E%3Cpath d='M256 112L196 400H236L256 360L276 400H316L256 112Z' fill='%230ea5e9'/%3E%3C/svg%3E";
 
 // Used for seeding the database if empty
 export const INITIAL_CURRICULUM: Lesson[] = [
