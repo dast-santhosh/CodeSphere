@@ -34,6 +34,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
       let userRole = role;
       let userStatus: UserStatus = 'pending';
       let completedLessonIds: string[] = [];
+      let progress: any = {};
 
       if (isSignUp) {
         // Sign Up
@@ -59,6 +60,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
           email: email,
           name: name,
           completedLessonIds: [],
+          progress: {},
           joinedAt: serverTimestamp()
         });
 
@@ -93,16 +95,17 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
           userRole = dbRole;
           userStatus = dbStatus;
           completedLessonIds = data.completedLessonIds || [];
+          progress = data.progress || {};
         } else {
             // Fallback for legacy users
             if (firebaseUser.uid === ADMIN_UID) {
                 userRole = 'admin';
                 userStatus = 'active';
-                await setDoc(doc(db, "users", firebaseUser.uid), { role: 'admin', status: 'active' }, { merge: true });
+                await setDoc(doc(db, "users", firebaseUser.uid), { role: 'admin', status: 'active', progress: {} }, { merge: true });
             } else {
                 userRole = 'student';
-                userStatus = 'pending'; // Treat unknown legacy users as pending? Or active. Let's say pending for safety.
-                await setDoc(doc(db, "users", firebaseUser.uid), { role: 'student', status: 'pending' }, { merge: true });
+                userStatus = 'pending'; 
+                await setDoc(doc(db, "users", firebaseUser.uid), { role: 'student', status: 'pending', progress: {} }, { merge: true });
             }
         }
       }
@@ -114,7 +117,8 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
         role: userRole,
         status: userStatus,
         avatar: firebaseUser.photoURL || `https://api.dicebear.com/7.x/avataaars/svg?seed=${firebaseUser.uid}`,
-        completedLessonIds: completedLessonIds
+        completedLessonIds: completedLessonIds,
+        progress: progress
       };
 
       onLogin(appUser);
@@ -142,6 +146,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
       let userRole = role;
       let userStatus: UserStatus = 'pending';
       let completedLessonIds: string[] = [];
+      let progress: any = {};
 
       if (!userDoc.exists()) {
           // Check for hardcoded Admin UID on creation
@@ -160,6 +165,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
               name: user.displayName || name || '',
               avatar: user.photoURL,
               completedLessonIds: [],
+              progress: {},
               joinedAt: serverTimestamp()
           });
       } else {
@@ -168,6 +174,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
           userRole = userData.role;
           userStatus = userData.status || 'pending';
           completedLessonIds = userData.completedLessonIds || [];
+          progress = userData.progress || {};
 
           // FORCE ADMIN PROMOTION FOR SPECIFIC UID
           if (user.uid === ADMIN_UID) {
@@ -191,7 +198,8 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
         role: userRole,
         status: userStatus,
         avatar: user.photoURL || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.uid}`,
-        completedLessonIds: completedLessonIds
+        completedLessonIds: completedLessonIds,
+        progress: progress
       };
 
       onLogin(appUser);

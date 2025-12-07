@@ -8,6 +8,11 @@ export enum Difficulty {
 export type Role = 'student' | 'admin';
 export type UserStatus = 'pending' | 'active' | 'rejected';
 
+export interface LessonProgress {
+  completedAt: string; // ISO String
+  score?: number;
+}
+
 export interface User {
   id: string;
   name: string;
@@ -16,6 +21,7 @@ export interface User {
   status: UserStatus;
   avatar?: string;
   completedLessonIds: string[];
+  progress?: Record<string, LessonProgress>; // Map of lessonId -> Progress
   joinedAt?: any; // Firestore Timestamp or Date
 }
 

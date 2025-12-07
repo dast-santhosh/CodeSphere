@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { ArrowLeft, CheckCircle, HelpCircle, BookOpen, CheckSquare, XCircle, ArrowRight } from 'lucide-react';
 import { Lesson } from '../types';
@@ -8,7 +9,7 @@ import confetti from 'canvas-confetti';
 interface LessonViewProps {
   lesson: Lesson;
   onBack: () => void;
-  onComplete: (lessonId: string) => void;
+  onComplete: (lessonId: string, score: number) => void;
 }
 
 const LessonView: React.FC<LessonViewProps> = ({ lesson, onBack, onComplete }) => {
@@ -74,7 +75,7 @@ const LessonView: React.FC<LessonViewProps> = ({ lesson, onBack, onComplete }) =
       
       if (result.isCorrect) {
           triggerCelebration();
-          onComplete(lesson.id);
+          onComplete(lesson.id, 100);
       }
     }
   };
@@ -104,10 +105,10 @@ const LessonView: React.FC<LessonViewProps> = ({ lesson, onBack, onComplete }) =
       setQuizSubmitted(true);
       
       // Mark as complete if score is > 70% or if all correct for small quizzes
-      const percentage = correctCount / lesson.quiz.length;
-      if (percentage >= 0.7 || (lesson.quiz.length < 3 && correctCount === lesson.quiz.length)) {
+      const percentage = (correctCount / lesson.quiz.length) * 100;
+      if (percentage >= 70 || (lesson.quiz.length < 3 && correctCount === lesson.quiz.length)) {
           triggerCelebration();
-          onComplete(lesson.id);
+          onComplete(lesson.id, Math.round(percentage));
       }
   };
 

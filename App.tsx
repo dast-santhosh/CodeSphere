@@ -61,7 +61,8 @@ const App: React.FC = () => {
                         role: data.role || 'student',
                         status: data.status as UserStatus || 'pending',
                         avatar: data.avatar || firebaseUser.photoURL || '',
-                        completedLessonIds: data.completedLessonIds || []
+                        completedLessonIds: data.completedLessonIds || [],
+                        progress: data.progress || {}
                     });
                 } else {
                     // Fallback if doc doesn't exist yet (race condition on signup)
@@ -72,7 +73,8 @@ const App: React.FC = () => {
                         role: 'student',
                         status: 'pending',
                         avatar: firebaseUser.photoURL || '',
-                        completedLessonIds: []
+                        completedLessonIds: [],
+                        progress: {}
                     });
                 }
                 setLoadingAuth(false);
@@ -142,19 +144,37 @@ const App: React.FC = () => {
     setCurrentView('learn');
   };
 
-  const handleLessonComplete = async (lessonId: string) => {
+  const handleLessonComplete = async (lessonId: string, score: number = 100) => {
     if (!user) return;
     
-    // Optimistic Update
-    if (!user.completedLessonIds.includes(lessonId)) {
-        const newCompleted = [...user.completedLessonIds, lessonId];
-        setUser({...user, completedLessonIds: newCompleted});
+    // Check if we need to update progress (if new or if score is better)
+    const currentProgress = user.progress?.[lessonId];
+    const isNew = !user.completedLessonIds.includes(lessonId);
+    const isBetterScore = currentProgress && (currentProgress.score === undefined || score > currentProgress.score);
+
+    if (isNew || isBetterScore) {
+        const timestamp = new Date().toISOString();
+        
+        // Optimistic Update
+        const newCompleted = isNew ? [...user.completedLessonIds, lessonId] : user.completedLessonIds;
+        const newProgress = { 
+            ...(user.progress || {}), 
+            [lessonId]: { completedAt: timestamp, score } 
+        };
+
+        setUser({
+            ...user, 
+            completedLessonIds: newCompleted,
+            progress: newProgress
+        });
 
         // DB Update
         try {
-            await updateDoc(doc(db, "users", user.id), {
-                completedLessonIds: arrayUnion(lessonId)
-            });
+            const updates: any = {
+                completedLessonIds: arrayUnion(lessonId),
+                [`progress.${lessonId}`]: { completedAt: timestamp, score }
+            };
+            await updateDoc(doc(db, "users", user.id), updates);
         } catch (e) {
             console.error("Failed to save progress", e);
         }
