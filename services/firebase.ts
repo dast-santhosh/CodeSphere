@@ -1,4 +1,4 @@
-import { initializeApp } from "firebase/app";
+import * as firebaseApp from "firebase/app";
 import { getAuth } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 
@@ -12,6 +12,7 @@ const firebaseConfig = {
   measurementId: "G-PYW815JT1Y"
 };
 
-const app = initializeApp(firebaseConfig);
+// Use namespace import compatibility or singleton pattern to avoid re-initialization
+const app = firebaseApp.getApps().length > 0 ? firebaseApp.getApp() : firebaseApp.initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 export const db = getFirestore(app);

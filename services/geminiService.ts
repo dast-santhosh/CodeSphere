@@ -1,4 +1,4 @@
-import { GoogleGenAI } from "@google/genai";
+import { GoogleGenAI, Type } from "@google/genai";
 import { CodeExecutionResult } from '../types';
 
 // Safely get the key
@@ -51,21 +51,31 @@ export const gradeCode = async (code: string, task: string): Promise<CodeExecuti
       ${code}
 
       Analyze if the code fulfills the task.
-      
-      Return a JSON object with this structure:
-      {
-        "passed": boolean,
-        "output": string (the output of the code),
-        "feedback": string (encouraging feedback or hint if failed)
-      }
-      Do not use markdown blocks for the JSON. Just raw JSON.
     `;
 
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash',
       contents: prompt,
       config: {
-          responseMimeType: "application/json"
+          responseMimeType: "application/json",
+          responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+              passed: {
+                type: Type.BOOLEAN,
+                description: "True if the code correctly fulfills the task."
+              },
+              output: {
+                type: Type.STRING,
+                description: "The simulated output of the code."
+              },
+              feedback: {
+                type: Type.STRING,
+                description: "Constructive feedback for the student."
+              }
+            },
+            required: ["passed", "output", "feedback"]
+          }
       }
     });
 
