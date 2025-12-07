@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { Layout, GraduationCap, Code, Video, LayoutDashboard, User as UserIcon, LogOut, Shield, AlertTriangle, Moon, Sun } from 'lucide-react';
+import { Layout, GraduationCap, Code, Video, LayoutDashboard, User as UserIcon, LogOut, Shield, AlertTriangle, Moon, Sun, ChevronLeft, ChevronRight } from 'lucide-react';
 import Dashboard from './components/Dashboard';
 import LessonView from './components/LessonView';
 import LiveClassroom from './components/LiveClassroom';
@@ -32,6 +32,7 @@ const App: React.FC = () => {
   const [currentView, setCurrentView] = useState<View>('dashboard');
   const [activeLesson, setActiveLesson] = useState<Lesson | null>(null);
   const [editingLesson, setEditingLesson] = useState<Lesson | null>(null);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   
   // Live Class State
   const [activeLiveRoomId, setActiveLiveRoomId] = useState<string | null>(null);
@@ -281,21 +282,34 @@ const App: React.FC = () => {
     return (
       <div className="flex h-screen overflow-hidden bg-gray-50 dark:bg-neutral-950">
         {/* Sidebar */}
-        <aside className="w-20 lg:w-64 bg-white dark:bg-neutral-900 border-r border-gray-200 dark:border-neutral-800 flex flex-col justify-between transition-all duration-300">
+        <aside 
+            className={`${isSidebarCollapsed ? 'w-20' : 'w-64'} bg-white dark:bg-neutral-900 border-r border-gray-200 dark:border-neutral-800 flex flex-col justify-between transition-all duration-300 relative shrink-0`}
+        >
+          {/* Toggle Button */}
+          <button 
+            onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+            className="absolute -right-3 top-20 bg-neutral-800 border border-neutral-700 text-neutral-400 p-1 rounded-full shadow-md hover:text-white z-50"
+          >
+             {isSidebarCollapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
+          </button>
+
           <div>
-            <div className="h-16 flex items-center justify-center lg:justify-start lg:px-6 border-b border-gray-200 dark:border-neutral-800">
-              <div className="w-10 h-10 overflow-hidden flex items-center justify-center shadow-lg shadow-primary-500/10 border border-primary-200 dark:border-primary-900/50 rounded-none">
+            <div className={`h-16 flex items-center ${isSidebarCollapsed ? 'justify-center' : 'justify-start px-6'} border-b border-gray-200 dark:border-neutral-800 overflow-hidden`}>
+              <div className="w-10 h-10 shrink-0 overflow-hidden flex items-center justify-center shadow-lg shadow-primary-500/10 border border-primary-200 dark:border-primary-900/50 rounded-none">
                  <img src={APP_LOGO} alt="Apex Code Labs" className="w-full h-full object-cover" />
               </div>
-              <span className="ml-3 font-bold text-xl text-gray-900 dark:text-white hidden lg:block tracking-tight">Apex Code Labs</span>
+              {!isSidebarCollapsed && (
+                  <span className="ml-3 font-bold text-xl text-gray-900 dark:text-white tracking-tight whitespace-nowrap">Apex Code Labs</span>
+              )}
             </div>
 
-            <nav className="p-4 space-y-2">
+            <nav className="p-2 space-y-2">
               <SidebarItem 
                 icon={<LayoutDashboard size={20} />} 
                 label="Dashboard" 
                 active={currentView === 'dashboard'} 
                 onClick={() => setCurrentView('dashboard')} 
+                collapsed={isSidebarCollapsed}
               />
               <SidebarItem 
                 icon={<GraduationCap size={20} />} 
@@ -307,64 +321,74 @@ const App: React.FC = () => {
                        setCurrentView('learn');
                    }
                 }} 
+                collapsed={isSidebarCollapsed}
               />
               <SidebarItem 
                 icon={<Video size={20} />} 
                 label="Live Class" 
                 active={currentView === 'live'} 
                 onClick={() => setCurrentView('live')} 
+                collapsed={isSidebarCollapsed}
               />
               <SidebarItem 
                 icon={<Code size={20} />} 
                 label="Sandbox" 
                 active={currentView === 'sandbox'} 
                 onClick={() => setCurrentView('sandbox')} 
+                collapsed={isSidebarCollapsed}
               />
               
               {user.role === 'admin' && (
                 <div className="pt-4 mt-4 border-t border-gray-200 dark:border-neutral-800">
-                    <div className="px-4 text-xs font-bold text-gray-400 dark:text-neutral-500 uppercase mb-2 hidden lg:block">Admin Controls</div>
+                    {!isSidebarCollapsed && (
+                        <div className="px-4 text-xs font-bold text-gray-400 dark:text-neutral-500 uppercase mb-2">Admin Controls</div>
+                    )}
                     <SidebarItem 
                         icon={<Shield size={20} />} 
                         label="Admin Panel" 
                         active={currentView === 'admin-dashboard'} 
                         onClick={() => setCurrentView('admin-dashboard')} 
+                        collapsed={isSidebarCollapsed}
                     />
                 </div>
               )}
             </nav>
           </div>
 
-          <div className="p-4 border-t border-gray-200 dark:border-neutral-800 space-y-2">
+          <div className="p-2 border-t border-gray-200 dark:border-neutral-800 space-y-2">
              <button
                 onClick={toggleTheme}
-                className="flex items-center justify-center lg:justify-start w-full p-2 text-gray-500 dark:text-neutral-500 hover:bg-gray-100 dark:hover:bg-neutral-800 rounded-none transition-all"
+                className={`flex items-center ${isSidebarCollapsed ? 'justify-center' : 'justify-start'} w-full p-2 text-gray-500 dark:text-neutral-500 hover:bg-gray-100 dark:hover:bg-neutral-800 rounded-none transition-all`}
                 title="Toggle Theme"
              >
-                 {theme === 'dark' ? <Sun size={20} className="lg:mr-3" /> : <Moon size={20} className="lg:mr-3" />}
-                 <span className="hidden lg:inline text-sm font-medium">{theme === 'dark' ? 'Light Mode' : 'Dark Mode'}</span>
+                 {theme === 'dark' ? <Sun size={20} /> : <Moon size={20} />}
+                 {!isSidebarCollapsed && <span className="ml-3 text-sm font-medium">{theme === 'dark' ? 'Light Mode' : 'Dark Mode'}</span>}
              </button>
 
              <button 
                 onClick={() => setCurrentView('profile')}
                 className={`flex items-center w-full p-2 rounded-none transition-all mb-2
-                    ${currentView === 'profile' ? 'bg-gray-100 dark:bg-neutral-800 text-gray-900 dark:text-white' : 'hover:bg-gray-50 dark:hover:bg-neutral-800/50 text-gray-500 dark:text-neutral-400'}`}
+                    ${currentView === 'profile' ? 'bg-gray-100 dark:bg-neutral-800 text-gray-900 dark:text-white' : 'hover:bg-gray-50 dark:hover:bg-neutral-800/50 text-gray-500 dark:text-neutral-400'}
+                    ${isSidebarCollapsed ? 'justify-center' : ''}`}
+                title="Profile"
              >
-                 <div className="w-8 h-8 overflow-hidden bg-gray-200 dark:bg-neutral-700 mr-0 lg:mr-3 border border-gray-300 dark:border-neutral-600 rounded-none">
+                 <div className={`w-8 h-8 shrink-0 overflow-hidden bg-gray-200 dark:bg-neutral-700 border border-gray-300 dark:border-neutral-600 rounded-none`}>
                      <img src={user.avatar} alt="User" className="w-full h-full object-cover" />
                  </div>
-                 <div className="hidden lg:block text-left overflow-hidden">
-                     <p className="text-sm font-bold text-gray-900 dark:text-white truncate">{user.name}</p>
-                     <p className="text-xs text-gray-500 dark:text-neutral-500 truncate capitalize">{user.role}</p>
-                 </div>
+                 {!isSidebarCollapsed && (
+                     <div className="ml-3 text-left overflow-hidden">
+                         <p className="text-sm font-bold text-gray-900 dark:text-white truncate">{user.name}</p>
+                         <p className="text-xs text-gray-500 dark:text-neutral-500 truncate capitalize">{user.role}</p>
+                     </div>
+                 )}
              </button>
              <button 
                 onClick={handleLogout}
-                className="flex items-center justify-center lg:justify-start w-full p-2 text-gray-500 dark:text-neutral-500 hover:text-red-500 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-none transition-all"
+                className={`flex items-center ${isSidebarCollapsed ? 'justify-center' : 'justify-start'} w-full p-2 text-gray-500 dark:text-neutral-500 hover:text-red-500 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-none transition-all`}
                 title="Sign Out"
              >
-                 <LogOut size={20} className="lg:mr-3" />
-                 <span className="hidden lg:inline text-sm font-medium">Sign Out</span>
+                 <LogOut size={20} />
+                 {!isSidebarCollapsed && <span className="ml-3 text-sm font-medium">Sign Out</span>}
              </button>
           </div>
         </aside>
@@ -469,10 +493,10 @@ const App: React.FC = () => {
   );
 };
 
-const SidebarItem = ({ icon, label, active, onClick }: { icon: React.ReactNode, label: string, active: boolean, onClick: () => void }) => (
+const SidebarItem = ({ icon, label, active, onClick, collapsed }: { icon: React.ReactNode, label: string, active: boolean, onClick: () => void, collapsed: boolean }) => (
   <button
     onClick={onClick}
-    className={`w-full flex items-center justify-center lg:justify-start p-3 transition-all duration-200 group rounded-none
+    className={`w-full flex items-center ${collapsed ? 'justify-center' : 'justify-start'} p-3 transition-all duration-200 group rounded-none
       ${active 
         ? 'bg-primary-600 text-white shadow-lg shadow-primary-500/25' 
         : 'text-gray-500 dark:text-neutral-400 hover:bg-gray-100 dark:hover:bg-neutral-800/50 hover:text-gray-900 dark:hover:text-white'
@@ -480,7 +504,7 @@ const SidebarItem = ({ icon, label, active, onClick }: { icon: React.ReactNode, 
     title={label}
   >
     <span className={`${active ? 'text-white' : 'text-gray-500 dark:text-neutral-400 group-hover:text-gray-900 dark:group-hover:text-white'}`}>{icon}</span>
-    <span className="hidden lg:block ml-3 font-medium text-sm">{label}</span>
+    {!collapsed && <span className="ml-3 font-medium text-sm whitespace-nowrap">{label}</span>}
   </button>
 );
 
